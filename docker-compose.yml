@@ -1,0 +1,21 @@
+# The general case: one Postgres with pgvector, one backend.
+# Frontend joins in wave 1, docs and observability arrive with the chart.
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: gotthard
+      POSTGRES_USER: gotthard
+      POSTGRES_PASSWORD: gotthard
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gotthard -d gotthard"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:

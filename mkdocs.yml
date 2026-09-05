@@ -1,0 +1,33 @@
+site_name: gotthard-spring
+site_description: Customer activity analytics for financial-services operators
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - content.code.copy
+  palette:
+    - scheme: default
+      toggle: { icon: material/weather-night, name: Dark }
+    - scheme: slate
+      toggle: { icon: material/weather-sunny, name: Light }
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Architecture: architecture.md
+  - Risk Model: risk-model.md
+  - AI Methodology: ai-methodology.md
+  - Demo: demo.md
