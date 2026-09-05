@@ -9,6 +9,30 @@ scoped lambdas). What follows is only what is specific to this repository.
 build it.** Every agent prompt is written to `docs/agents/NN-task.md` at spawn
 time. That file is a deliverable, not a byproduct.
 
+## Effort split — 80/20, and the 20 does not grow
+
+Eighty per cent of the work goes on what the brief actually asks for: customer
+search, the activity overview, AI analysis returning a risk level with a summary
+and recommendations, operator login, RAG over policy, persisted analyses — plus
+the README, the demo and the methodology writeup, all three of which are named
+deliverables.
+
+Twenty per cent goes on four differentiators, and only these four:
+
+| Extra | Why it earns its place |
+|---|---|
+| Crypto wallet BFS | The one real algorithm in the project |
+| Helm chart + kind | Deployable, mirrors how the author works at CERN |
+| Grafana, golden signals | Latency, traffic, errors, saturation — plus LLM token spend |
+| MkDocs Material | Same docs, rendered; already scaffolded |
+
+ArgoCD is **declared, not live**: the Application manifest is committed and gets
+bootstrapped once to prove it syncs, but nothing in the demo depends on it.
+
+Nothing outside that table gets built. If the schedule slips, the extras are cut
+first and the README says so plainly — never the spec items, and never the demo
+rehearsal.
+
 ## Stack — pinned, do not drift
 
 | | |
