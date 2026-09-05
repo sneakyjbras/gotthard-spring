@@ -12,7 +12,7 @@ import org.testcontainers.utility.DockerImageName;
  * fiction. Keep this image in step with docker-compose.yml and the Helm chart.
  */
 @TestConfiguration(proxyBeanMethods = false)
-class TestcontainersConfiguration {
+public class TestcontainersConfiguration {
 
     private static final DockerImageName POSTGRES =
             DockerImageName.parse("pgvector/pgvector:pg17").asCompatibleSubstituteFor("postgres");
