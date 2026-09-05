@@ -1,0 +1,129 @@
+/* ============================================================================
+   Gotthard Spring — design tokens
+   ----------------------------------------------------------------------------
+   Swiss International Typographic Style: a strict grid, hairline rules,
+   black / white / grey with a single accent reserved for risk emphasis, and
+   tabular monospace for every number, ID, IBAN, wallet address and hash.
+
+   This file is the single source of truth for the design system. The
+   `@theme` block below does two things at once: it declares these as real,
+   inspectable CSS custom properties on `:root` (open devtools, they are all
+   there — nothing here is a build-time-only abstraction), and it tells
+   Tailwind which utility classes to generate from them (`bg-paper`,
+   `text-ink-muted`, `font-mono`, `text-4xl`, …).
+
+   Every namespace Tailwind ships a default palette or scale for is reset to
+   `initial` first and then redefined from scratch. That is deliberate: it
+   makes an off-system utility (`bg-red-500`, `rounded-md`, `shadow-lg`) fail
+   to exist at all, rather than merely being a style-guide violation someone
+   can miss in review. Components are built ONLY from what is declared here.
+   ============================================================================ */
+
+@theme {
+  /* ---- colour — light, the default ---------------------------------- */
+  /* Tailwind's stock palette is switched off; only the tokens below exist. */
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentcolor;
+
+  --color-paper: #ffffff; /* page background */
+  --color-paper-subtle: #f5f5f3; /* zebra rows, hover fill — never a card */
+  --color-ink: #0a0a0a; /* primary text */
+  --color-ink-muted: #5c5c5c; /* secondary text, table headers, captions */
+  --color-ink-faint: #8a8a8a; /* placeholder / disabled ONLY — sub-AA on purpose */
+  --color-rule: #dededa; /* hairline separators — low contrast by design */
+  --color-rule-strong: #0a0a0a; /* rare emphasis rule, e.g. header baseline */
+  --color-accent: #d52b1e; /* Swiss red, Pantone 485C — risk emphasis, nothing else */
+  --color-accent-on: #ffffff; /* text/icon placed on a filled accent surface */
+  --color-accent-fg: #d52b1e; /* accent used as foreground directly on paper */
+
+  /* ---- type — two families: one to read, one to align ---------------- */
+  --font-*: initial;
+  --font-sans: 'Archivo Variable', Archivo, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* ---- type scale — deliberate jumps, not a smooth ramp --------------
+     Every number/ID/IBAN/wallet/hash is set in --font-mono at whatever
+     size it appears; the scale itself is size only, family is chosen by
+     the component. */
+  --text-*: initial;
+  --text-xs: 0.6875rem; /* 11px — micro eyebrow, footnotes */
+  --text-sm: 0.8125rem; /* 13px — uppercase labels, table headers */
+  --text-base: 0.9375rem; /* 15px — body */
+  --text-lg: 1.1875rem; /* 19px — lead paragraph */
+  --text-xl: 1.5rem; /* 24px — subheading */
+  --text-2xl: 2rem; /* 32px — page heading */
+  --text-3xl: 3rem; /* 48px — large stat */
+  --text-4xl: 4.5rem; /* 72px — hero numeral */
+  --text-5xl: 6rem; /* 96px — mega hero numeral (login only) */
+
+  --tracking-*: initial;
+  --tracking-tight: -0.02em; /* large numerals/headings pull in slightly */
+  --tracking-normal: 0em;
+  --tracking-wide: 0.04em;
+  --tracking-wider: 0.08em;
+  --tracking-widest: 0.16em; /* small uppercase labels beneath heroes */
+
+  --leading-*: initial;
+  --leading-none: 1;
+  --leading-tight: 1.1;
+  --leading-snug: 1.3;
+  --leading-normal: 1.5;
+
+  --font-weight-*: initial;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-black: 800;
+
+  /* ---- radius — sharp by default; `full` exists only for geometric dots
+     used as data marks, never as decorative rounding on UI chrome. -------- */
+  --radius-*: initial;
+  --radius-none: 0px;
+  --radius-full: 9999px;
+
+  /* ---- shadow — switched off entirely. Swiss surfaces carry no elevation;
+     separation comes from hairline rules and whitespace only. ------------ */
+  --shadow-*: initial;
+}
+
+/* ---- colour — dark, driven by system preference --------------------------
+   Only the colour tokens change between themes; type scale, radius and
+   shadow policy are theme-invariant and stay defined once, above. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-paper: #0a0a0a;
+    --color-paper-subtle: #161615;
+    --color-ink: #f2f2f0;
+    --color-ink-muted: #a8a8a5;
+    --color-ink-faint: #828280;
+    --color-rule: #262624;
+    --color-rule-strong: #f2f2f0;
+    --color-accent: #d52b1e;
+    --color-accent-on: #ffffff;
+    --color-accent-fg: #ff7a6b; /* lifted for AA contrast against near-black */
+  }
+}
+
+/* ---- colour — dark, explicit manual override ------------------------------
+   Set by the theme toggle: document.documentElement.dataset.theme = 'dark'.
+   Wins over system preference in both directions (see the 'light' override
+   selector above, and this one). */
+:root[data-theme='dark'] {
+  --color-paper: #0a0a0a;
+  --color-paper-subtle: #161615;
+  --color-ink: #f2f2f0;
+  --color-ink-muted: #a8a8a5;
+  --color-ink-faint: #828280;
+  --color-rule: #262624;
+  --color-rule-strong: #f2f2f0;
+  --color-accent: #d52b1e;
+  --color-accent-on: #ffffff;
+  --color-accent-fg: #ff7a6b;
+}
+
+/* ---- tokens outside Tailwind's utility-generating namespaces -------------- */
+:root {
+  --container-max: 1440px; /* the strict grid's outer bound on wide viewports */
+}

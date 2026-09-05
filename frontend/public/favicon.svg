@@ -1,0 +1,7 @@
+<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gotthard Spring">
+  <rect width="32" height="32" fill="#0a0a0a" />
+  <rect x="5" y="19" width="4" height="8" fill="#ffffff" />
+  <rect x="11" y="11" width="4" height="16" fill="#ffffff" />
+  <rect x="17" y="5" width="4" height="22" fill="#ffffff" />
+  <rect x="23" y="15" width="4" height="12" fill="#ffffff" />
+</svg>

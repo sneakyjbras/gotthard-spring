@@ -1,0 +1,54 @@
+@import 'tailwindcss';
+
+/* Self-hosted type — no third-party requests from an operator console that
+   handles customer financial data. Weight axis only (no variable width). */
+@import '@fontsource-variable/archivo/wght.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+
+@import './tokens.css';
+
+@layer base {
+  /* Belt-and-suspenders for two of the brief's hard constraints. Tailwind's
+     radius/shadow utility namespaces are already wiped in tokens.css, so
+     there is no *class* that can add rounding or elevation — this rule
+     covers user-agent defaults (buttons, inputs, <details>, …) too. The
+     `full` radius utility still wins where used, e.g. geometric dot marks:
+     Tailwind's utility layer is declared after `base`, so specificity ties
+     resolve in the utility's favour regardless of source order. */
+  *,
+  *::before,
+  *::after {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  html {
+    color-scheme: light dark;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    font-synthesis: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: var(--color-ink);
+    color: var(--color-paper);
+  }
+
+  /* A single, consistent focus treatment: a solid offset outline in ink,
+     never the accent (accent stays reserved for risk) and never a glow. */
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+}
