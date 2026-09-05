@@ -22,6 +22,36 @@ which one produced the result. `./start.sh --help` covers the rest.
 Requires Docker with the compose plugin. Java is fetched by the Gradle
 toolchain, so no local JDK 25 is needed.
 
+## Demo login
+
+`V2__seed_operators.sql` seeds two operators, one of each role, so logging in
+as different operators is demonstrable without creating accounts by hand:
+
+| Username   | Password                | Role         |
+|------------|--------------------------|--------------|
+| `e.rossi`  | `Operator-Demo-2026`     | `OPERATOR`   |
+| `m.keller` | `Supervisor-Demo-2026`   | `SUPERVISOR` |
+
+**Demo-only.** These are throwaway credentials for this exercise, seeded
+straight into a disposable database — never real accounts, and never reused
+anywhere else. The seed migration stores argon2id hashes
+(`Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8()`), generated and
+confirmed to verify with `PasswordEncoder.matches(...)` before being
+committed, never guessed.
+
+Session-based login needs a CSRF token first — the SPA does this automatically;
+from the command line:
+
+```bash
+curl -c cookies.txt http://localhost:8080/api/auth/csrf
+curl -b cookies.txt -c cookies.txt \
+  -H "X-XSRF-TOKEN: $(grep XSRF-TOKEN cookies.txt | cut -f7)" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"e.rossi","password":"Operator-Demo-2026"}' \
+  http://localhost:8080/api/auth/login
+curl -b cookies.txt http://localhost:8080/api/auth/me
+```
+
 ## Architecture
 
 ```
