@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="Gotthard Spring — customer activity console for financial-services operators."
+    />
+    <title>Gotthard Spring</title>
+    <script>
+      // Applies a stored theme override before first paint, so overriding
+      // "system" never flashes the wrong theme. Mirrors lib/theme/theme.ts;
+      // duplicated deliberately — this must run with zero dependencies,
+      // before React (or anything else) has loaded.
+      (function () {
+        try {
+          var stored = localStorage.getItem('gotthard.theme');
+          if (stored === 'light' || stored === 'dark') {
+            document.documentElement.dataset.theme = stored;
+          }
+        } catch (_error) {
+          // Inaccessible storage just means "follow system", the default.
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
