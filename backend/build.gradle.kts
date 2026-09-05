@@ -28,6 +28,9 @@ dependencies {
 	implementation("org.flywaydb:flyway-database-postgresql")
 	runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 	runtimeOnly("org.postgresql:postgresql")
+	// spring-security-crypto declares Bouncy Castle as optional; Argon2PasswordEncoder throws at
+	// runtime without it. Not managed by the Boot BOM, so the version is pinned explicitly here.
+	runtimeOnly("org.bouncycastle:bcprov-jdk18on:1.85.2")
 	testImplementation("org.springframework.boot:spring-boot-starter-actuator-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
