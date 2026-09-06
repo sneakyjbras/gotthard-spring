@@ -22,6 +22,11 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-flyway")
+	// Hibernate's own pgvector support (PolicyChunk#embedding, mapped via SqlTypes.VECTOR_FLOAT32).
+	// Not managed by the Boot BOM, so pinned explicitly — kept in step with the hibernate-core version
+	// spring-boot-starter-data-jpa resolves (see `./gradlew dependencies`) since the two ship together
+	// upstream.
+	implementation("org.hibernate.orm:hibernate-vector:7.4.5.Final")
 	implementation("org.springframework.boot:spring-boot-starter-security")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")

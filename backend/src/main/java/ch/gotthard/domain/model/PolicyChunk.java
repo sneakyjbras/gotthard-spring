@@ -12,15 +12,20 @@ import org.hibernate.type.SqlTypes;
  * One retrievable clause of policy text, with its embedding. Maps {@code policy_chunks}, the
  * knowledge base behind RAG.
  *
- * <p>{@link #embedding} is a pgvector {@code vector(384)} column. Retrieval (similarity search,
- * writing real embeddings) is owned by {@code ai/}; this mapping only needs to satisfy Hibernate
- * schema validation, so it is a plain {@code String} behind an explicit {@code columnDefinition} —
- * enough to validate, not enough to compute with. It is mapped {@code insertable = false, updatable
- * = false} on purpose: PostgreSQL rejects binding a {@code varchar}-typed parameter into a {@code
- * vector} column outright (even when the value is {@code null} — the parameter's declared type is
- * checked independently of the value), so a plain String can read this column but must never try to
- * write it. Whoever builds the retriever will need a real vector-aware type to write embeddings, and
- * should widen this mapping accordingly rather than relax these flags.
+ * <p>{@link #embedding} is a pgvector {@code vector(384)} column, mapped as {@code float[]} via
+ * {@code SqlTypes.VECTOR_FLOAT32} — Hibernate's own vector-aware JDBC type, contributed by the {@code
+ * hibernate-vector} module (see {@code build.gradle.kts}), not a hand-rolled one. This used to be a
+ * plain {@code String} behind an explicit {@code columnDefinition}, mapped {@code insertable = false,
+ * updatable = false}: enough to satisfy Hibernate schema validation, never enough to write with,
+ * because PostgreSQL rejects binding a {@code varchar}-typed parameter into a {@code vector} column
+ * outright (even when the value is {@code null} — the parameter's declared type is checked
+ * independently of the value). {@code ai.retrieval} widens the mapping to a real vector-aware type
+ * instead of relaxing those flags on the old one, which is what actually fixes the problem: {@link
+ * ch.gotthard.ai.retrieval.PolicyCorpusEmbeddingInitializer} writes real embeddings back through this
+ * entity via a plain {@code repository.save(chunk)}, no workaround required. The similarity *search*
+ * itself is a different concern — a ranked, {@code LIMIT}-ed nearest-neighbour query has no JPQL
+ * equivalent — and is handled separately in {@code PolicyChunkRepositoryImpl} via a native query; see
+ * its Javadoc.
  *
  * <p>{@link #metadata} is JSONB, mapped as raw JSON text via Hibernate's native {@code
  * SqlTypes.JSON} support rather than a structured type, for the same reason: nothing downstream of
@@ -46,9 +51,9 @@ public class PolicyChunk {
     @Column(nullable = false)
     private String body;
 
-    // Owned by ai/ (retrieval). Placeholder, read-only mapping only — see class Javadoc.
-    @Column(columnDefinition = "vector(384)", insertable = false, updatable = false)
-    private String embedding;
+    @JdbcTypeCode(SqlTypes.VECTOR_FLOAT32)
+    @Column(columnDefinition = "vector(384)")
+    private float[] embedding;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb", nullable = false)
@@ -99,9 +104,13 @@ public class PolicyChunk {
         this.body = body;
     }
 
-    /** Read-only through this mapping — see the class Javadoc for why there is no setter. */
-    public String getEmbedding() {
+    public float[] getEmbedding() {
         return embedding;
+    }
+
+    /** Owned by {@code ai.retrieval}: {@code PolicyCorpusEmbeddingInitializer} is the one caller. */
+    public void setEmbedding(float[] embedding) {
+        this.embedding = embedding;
     }
 
     public String getMetadata() {
