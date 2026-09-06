@@ -120,8 +120,97 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface Session {
-  operator: Operator;
-  token: string;
-  issuedAt: IsoDateTime;
+/**
+ * Mirrors `Money`. Card, payment and crypto amounts stay in the currency the
+ * transaction actually happened in; only channel and window totals are
+ * converted to the reporting currency (CHF) — see `ReportingRates` on the
+ * backend.
+ */
+export interface Money {
+  currency: string;
+  amount: number;
+}
+
+/** An optional `[from, to]` bound for the activity and risk endpoints. Omitted ends default server-side. */
+export interface ActivityWindowParams {
+  from?: IsoDateTime;
+  to?: IsoDateTime;
+}
+
+/** Mirrors `ChannelActivity` — one channel's totals for the window. */
+export interface ChannelSummary {
+  channel: ActivityType;
+  transactionCount: number;
+  volume: Money;
+  unsuccessfulCount: number;
+  firstAt: IsoDateTime;
+  lastAt: IsoDateTime;
+}
+
+/**
+ * One row of `GET /api/customers/{id}/activity`'s recent-transactions page —
+ * mirrors `TransactionView` exactly.
+ *
+ * Unlike {@link Transaction} below (the richer per-channel shape the
+ * styleguide's mock fixture uses), the real activity endpoint always returns
+ * this flattened row: `counterparty` and `channelDetail` carry a different
+ * meaning per channel rather than each channel exposing its own named
+ * fields — `counterparty` is the merchant name (CARD), the beneficiary
+ * account (PAYMENT) or the receiving wallet address (CRYPTO);
+ * `channelDetail` is the MCC, the beneficiary bank country, or the
+ * blockchain, respectively. A page renders each channel's own columns by
+ * relabelling these two fields per `channel`, not by expecting extra ones.
+ */
+export interface ActivityTransaction {
+  transactionId: UUID;
+  channel: ActivityType;
+  amount: Money;
+  status: TransactionStatus;
+  occurredAt: IsoDateTime;
+  counterparty: string;
+  channelDetail: string | null;
+}
+
+/** Mirrors `ActivityOverview` — the customer detail screen's activity half. */
+export interface ActivityOverview {
+  customer: Customer;
+  from: IsoDateTime;
+  to: IsoDateTime;
+  transactionCount: number;
+  totalVolume: Money;
+  unsuccessfulCount: number;
+  /** Only the channels the customer actually used in the window. */
+  channels: ChannelSummary[];
+  /** The newest transactions in the window, newest first, capped server-side. */
+  recentTransactions: ActivityTransaction[];
+}
+
+/**
+ * Mirrors `RiskFinding` — one rule firing on one transaction. The API gives a
+ * code, a name and the score it contributed, but not the condition text
+ * itself; pair `ruleCode` with `ruleCondition` from `./rule-catalogue` to
+ * show *why* it fired, not just that it did.
+ */
+export interface RiskFinding {
+  transactionId: UUID;
+  occurredAt: IsoDateTime;
+  channel: ActivityType;
+  ruleCode: string;
+  ruleName: string;
+  contribution: number;
+}
+
+/**
+ * Mirrors `CustomerRiskReport`. `score` is the highest any single
+ * transaction in the window scored, not a sum across it — see the backend
+ * type's own doc for why.
+ */
+export interface CustomerRiskReport {
+  customer: Customer;
+  from: IsoDateTime;
+  to: IsoDateTime;
+  transactionsEvaluated: number;
+  score: number;
+  level: RiskLevel;
+  findings: RiskFinding[];
 }

@@ -1,30 +1,25 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { api } from '../api/client';
+import { setSessionExpiredHandler } from '../api/session-events';
 import type { Operator } from '../api/types';
 import { AuthContext, type AuthContextValue } from './AuthContext';
 
 const STORAGE_KEY = 'gotthard.session';
 
-interface StoredSession {
-  operator: Operator;
-  token: string;
-}
-
 function readStoredOperator(): Operator | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return (JSON.parse(raw) as StoredSession).operator;
+    return raw ? (JSON.parse(raw) as Operator) : null;
   } catch {
     // Corrupt or inaccessible storage is equivalent to "signed out", not a crash.
     return null;
   }
 }
 
-function persistSession(session: StoredSession | null): void {
+function persistOperator(operator: Operator | null): void {
   try {
-    if (session) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    if (operator) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(operator));
     } else {
       localStorage.removeItem(STORAGE_KEY);
     }
@@ -33,25 +28,71 @@ function persistSession(session: StoredSession | null): void {
   }
 }
 
-/** Wraps the app; makes `useAuth` available to every route. */
+/**
+ * Wraps the app; makes `useAuth` available to every route.
+ *
+ * The session itself lives on the backend, as a cookie — `operator` here is
+ * a client-side mirror of it, not the source of truth. Two things keep it
+ * honest:
+ *
+ * 1. On mount, `api.getSession()` (`GET /api/auth/me`) confirms whether the
+ *    cookie is actually still valid, reconciling the optimistic value read
+ *    from `localStorage` — that cache exists only so a refresh does not
+ *    flash an authenticated page over to `/login` and back while the check
+ *    is in flight.
+ * 2. `setSessionExpiredHandler` (`../api/session-events`) subscribes to any
+ *    401 the HTTP client discovers later, mid-session — an idle timeout, a
+ *    backend restart — clearing `operator` immediately so `ProtectedRoute`
+ *    drops back to `/login` instead of a page rendering with no data.
+ */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [operator, setOperator] = useState<Operator | null>(readStoredOperator);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  useEffect(() => {
+    setSessionExpiredHandler(() => {
+      persistOperator(null);
+      setOperator(null);
+    });
+    return () => setSessionExpiredHandler(null);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getSession()
+      .then((current) => {
+        if (cancelled) return;
+        persistOperator(current);
+        setOperator(current);
+      })
+      .catch(() => {
+        // Can't reach the backend to confirm either way — trust the cached
+        // operator rather than bouncing a reviewer to login over a network blip.
+      })
+      .finally(() => {
+        if (!cancelled) setIsInitializing(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const login = useCallback(async (username: string, password: string) => {
-    const session = await api.login({ username, password });
-    persistSession({ operator: session.operator, token: session.token });
-    setOperator(session.operator);
+    const loggedInOperator = await api.login({ username, password });
+    persistOperator(loggedInOperator);
+    setOperator(loggedInOperator);
   }, []);
 
   const logout = useCallback(() => {
-    persistSession(null);
+    persistOperator(null);
     setOperator(null);
     void api.logout();
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ operator, isAuthenticated: operator !== null, login, logout }),
-    [operator, login, logout],
+    () => ({ operator, isAuthenticated: operator !== null, isInitializing, login, logout }),
+    [operator, isInitializing, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

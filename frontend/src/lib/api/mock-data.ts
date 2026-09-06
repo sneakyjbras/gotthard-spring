@@ -1,4 +1,16 @@
-import type { CustomerSummary, Transaction } from './types';
+import type {
+  ActivityOverview,
+  ActivityTransaction,
+  ActivityType,
+  ChannelSummary,
+  CustomerRiskReport,
+  CustomerSummary,
+  Money,
+  RiskFinding,
+  RiskLevel,
+  Transaction,
+  TransactionStatus,
+} from './types';
 
 /**
  * Seed data standing in for the backend, which does not expose an API yet.
@@ -286,3 +298,156 @@ export const mockTransactions: readonly Transaction[] = [
     declineReason: null,
   },
 ];
+
+/**
+ * Deterministic activity and risk data for `mockApiClient`'s
+ * `getCustomerActivity`/`getCustomerRisk` — the shapes the real
+ * `GET /api/customers/{id}/activity` and `/risk` endpoints return (see
+ * `./types`), synthesised per customer rather than hand-written so all
+ * eighteen `mockCustomers` have something to show, not just a hand-picked
+ * few. Seeded off `customerId`, so the same customer always gets the same
+ * mock activity across reloads and re-searches within one session.
+ */
+
+/** A tiny seeded PRNG (mulberry32) — deterministic per customer, no dependency. */
+function mulberry32(seed: number): () => number {
+  let state = seed;
+  return () => {
+    state |= 0;
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function seedOf(text: string): number {
+  let hash = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = (Math.imul(31, hash) + text.charCodeAt(index)) | 0;
+  }
+  return hash;
+}
+
+function pick<T>(rand: () => number, options: readonly T[]): T {
+  return options[Math.floor(rand() * options.length)];
+}
+const between = (rand: () => number, min: number, max: number): number => min + rand() * (max - min);
+const round2 = (value: number): number => Math.round(value * 100) / 100;
+
+const CARD_MERCHANTS = ['Läderach Chocolatier', 'Coop Supermarché', 'SBB CFF FFS', 'Interflora Genève', 'Migros'] as const;
+const MCC_CODES = ['5411', '5812', '4112', '5992', '5999'] as const;
+const PAYMENT_COUNTRIES = ['DE', 'FR', 'IT', 'GB', 'US'] as const;
+const CRYPTO_CHAINS = ['BITCOIN', 'ETHEREUM'] as const;
+const STATUSES: readonly TransactionStatus[] = ['COMPLETED', 'COMPLETED', 'COMPLETED', 'PENDING', 'FAILED'];
+
+const CHANNEL_CURRENCY: Record<ActivityType, () => string> = {
+  CARD: () => 'CHF',
+  PAYMENT: () => 'EUR',
+  CRYPTO: () => 'BTC',
+};
+
+function channelCounterparty(rand: () => number, channel: ActivityType): { counterparty: string; channelDetail: string } {
+  switch (channel) {
+    case 'CARD':
+      return { counterparty: pick(rand, CARD_MERCHANTS), channelDetail: pick(rand, MCC_CODES) };
+    case 'PAYMENT':
+      return { counterparty: `CH93${Math.floor(between(rand, 1e14, 9e14))}`, channelDetail: pick(rand, PAYMENT_COUNTRIES) };
+    case 'CRYPTO':
+      return { counterparty: `bc1q${Math.floor(between(rand, 1e12, 9e12)).toString(36)}`, channelDetail: pick(rand, CRYPTO_CHAINS) };
+  }
+}
+
+function mockTransaction(rand: () => number, channel: ActivityType, hoursAgo: number): ActivityTransaction {
+  const currency = CHANNEL_CURRENCY[channel]();
+  const amount = channel === 'CRYPTO' ? round2(between(rand, 0.01, 3)) : round2(between(rand, 15, 4800));
+  return {
+    transactionId: id(),
+    channel,
+    amount: { currency, amount },
+    status: pick(rand, STATUSES),
+    occurredAt: new Date(Date.now() - hoursAgo * 3_600_000).toISOString(),
+    ...channelCounterparty(rand, channel),
+  };
+}
+
+function mockChannel(channel: ActivityType, transactions: readonly ActivityTransaction[]): ChannelSummary {
+  const own = transactions.filter((transaction) => transaction.channel === channel);
+  const volume: Money = {
+    currency: 'CHF',
+    amount: round2(own.reduce((sum, transaction) => sum + transaction.amount.amount, 0)),
+  };
+  return {
+    channel,
+    transactionCount: own.length,
+    volume,
+    unsuccessfulCount: own.filter((transaction) => transaction.status === 'FAILED' || transaction.status === 'REVERSED').length,
+    firstAt: own[own.length - 1]?.occurredAt ?? new Date().toISOString(),
+    lastAt: own[0]?.occurredAt ?? new Date().toISOString(),
+  };
+}
+
+/** Stands in for `GET /api/customers/{id}/activity`. */
+export function mockActivityOverview(customer: CustomerSummary): ActivityOverview {
+  const rand = mulberry32(seedOf(customer.customerId));
+  const channelsUsed: ActivityType[] = (['CARD', 'PAYMENT', 'CRYPTO'] as const).filter(() => rand() > 0.15);
+  const transactions = channelsUsed
+    .flatMap((channel) => {
+      const count = Math.floor(between(rand, 3, 9));
+      return Array.from({ length: count }, (_unused, index) => mockTransaction(rand, channel, index * between(rand, 4, 30)));
+    })
+    .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
+
+  const channels = channelsUsed.map((channel) => mockChannel(channel, transactions));
+  const now = new Date();
+  return {
+    customer,
+    from: new Date(now.getTime() - 30 * 86_400_000).toISOString(),
+    to: now.toISOString(),
+    transactionCount: transactions.length,
+    totalVolume: { currency: 'CHF', amount: round2(channels.reduce((sum, channel) => sum + channel.volume.amount, 0)) },
+    unsuccessfulCount: channels.reduce((sum, channel) => sum + channel.unsuccessfulCount, 0),
+    channels,
+    recentTransactions: transactions,
+  };
+}
+
+/**
+ * The findings a risk level "would have" produced, worked from the same
+ * per-transaction totals `V4__seed_demo_data.sql` documents (see
+ * `./rule-catalogue` for the condition text these codes resolve to).
+ */
+const FINDINGS_BY_LEVEL: Record<Exclude<RiskLevel, 'LOW'>, readonly { ruleCode: string; ruleName: string; contribution: number }[]> = {
+  MEDIUM: [{ ruleCode: 'R-02', ruleName: 'Elevated-Risk Payment Corridor', contribution: 32 }],
+  HIGH: [{ ruleCode: 'R-03', ruleName: 'Card-Not-Present Decline Cluster', contribution: 52 }],
+  CRITICAL: [
+    { ruleCode: 'R-01', ruleName: 'Near-Threshold Structuring', contribution: 44 },
+    { ruleCode: 'R-02', ruleName: 'Elevated-Risk Payment Corridor', contribution: 32 },
+  ],
+};
+
+/** Stands in for `GET /api/customers/{id}/risk`. `latestRiskLevel` drives which findings "fired". */
+export function mockRiskReport(customer: CustomerSummary): CustomerRiskReport {
+  const rand = mulberry32(seedOf(customer.customerId) ^ 0x5eed);
+  const level = customer.latestRiskLevel ?? 'LOW';
+  const templates = level === 'LOW' ? [] : FINDINGS_BY_LEVEL[level];
+  const channels: ActivityType[] = ['PAYMENT', 'CARD', 'CRYPTO'];
+  const findings: RiskFinding[] = templates.map((template, index) => ({
+    transactionId: id(),
+    occurredAt: new Date(Date.now() - between(rand, 1, 96) * 3_600_000).toISOString(),
+    channel: channels[index % channels.length],
+    ruleCode: template.ruleCode,
+    ruleName: template.ruleName,
+    contribution: template.contribution,
+  }));
+  const now = new Date();
+  return {
+    customer,
+    from: new Date(now.getTime() - 30 * 86_400_000).toISOString(),
+    to: now.toISOString(),
+    transactionsEvaluated: Math.floor(between(rand, 8, 40)),
+    score: findings.reduce((sum, finding) => sum + finding.contribution, 0),
+    level,
+    findings,
+  };
+}

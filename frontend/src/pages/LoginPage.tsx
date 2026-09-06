@@ -93,8 +93,8 @@ export function LoginPage() {
           </Button>
 
           <p className="text-sm text-ink-faint">
-            Demo — username <span className="font-mono">operator</span>, password{' '}
-            <span className="font-mono">gotthard</span>.
+            Demo — username <span className="font-mono">e.rossi</span>, password{' '}
+            <span className="font-mono">Operator-Demo-2026</span>.
           </p>
         </form>
       </section>

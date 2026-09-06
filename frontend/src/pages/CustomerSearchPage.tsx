@@ -1,7 +1,9 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { PageShell } from '@/components/layout';
 import { Button, DataTable, RiskBadge, StatBlock, TextInput, type DataTableColumn } from '@/components/primitives';
 import { api } from '@/lib/api/client';
+import { ApiError } from '@/lib/api/contract';
 import type { CustomerSummary } from '@/lib/api/types';
 import { formatDate } from '@/lib/utils/format';
 
@@ -10,6 +12,15 @@ function RiskCell({ level }: { level: CustomerSummary['latestRiskLevel'] }) {
     return <span className="text-ink-faint">Not assessed</span>;
   }
   return <RiskBadge level={level} />;
+}
+
+/** The one way a search result opens the customer detail screen. Reference and name both link — the bigger of two small targets, not a whole clickable row (`DataTable` renders each cell's own content; see the primitive). */
+function CustomerLink({ customer, children }: { customer: CustomerSummary; children: ReactNode }) {
+  return (
+    <Link to={`/customers/${encodeURIComponent(customer.reference)}`} className="hover:underline focus-visible:underline">
+      {children}
+    </Link>
+  );
 }
 
 export function CustomerSearchPage() {
@@ -21,8 +32,13 @@ export function CustomerSearchPage() {
 
   const columns = useMemo<DataTableColumn<CustomerSummary>[]>(
     () => [
-      { key: 'reference', header: 'Reference', monospace: true, render: (c) => c.reference },
-      { key: 'name', header: 'Name', render: (c) => c.fullName },
+      {
+        key: 'reference',
+        header: 'Reference',
+        monospace: true,
+        render: (c) => <CustomerLink customer={c}>{c.reference}</CustomerLink>,
+      },
+      { key: 'name', header: 'Name', render: (c) => <CustomerLink customer={c}>{c.fullName}</CustomerLink> },
       { key: 'segment', header: 'Segment', render: (c) => c.segment.replace('_', ' ') },
       { key: 'country', header: 'Country', render: (c) => c.country },
       { key: 'onboarded', header: 'Onboarded', render: (c) => formatDate(c.onboardedAt) },
@@ -42,8 +58,8 @@ export function CustomerSearchPage() {
       const found = await api.searchCustomers(trimmed);
       setResults(found);
       setHasSearched(true);
-    } catch {
-      setError('Search failed. Try again.');
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Search failed. Try again.');
     } finally {
       setLoading(false);
     }
@@ -55,8 +71,8 @@ export function CustomerSearchPage() {
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-bold">Customer search</h1>
           <p className="max-w-2xl text-sm text-ink-muted">
-            Look up a customer by reference, name or customer ID to review their card, payment and
-            cryptocurrency activity.
+            Look up a customer by their exact reference or customer ID to review their card, payment
+            and cryptocurrency activity.
           </p>
         </div>
 
