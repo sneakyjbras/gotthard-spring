@@ -9,29 +9,32 @@ scoped lambdas). What follows is only what is specific to this repository.
 build it.** Every agent prompt is written to `docs/agents/NN-task.md` at spawn
 time. That file is a deliverable, not a byproduct.
 
-## Effort split — 80/20, and the 20 does not grow
+## Effort split — revised, and the 20 has been cut
 
-Eighty per cent of the work goes on what the brief actually asks for: customer
-search, the activity overview, AI analysis returning a risk level with a summary
-and recommendations, operator login, RAG over policy, persisted analyses — plus
-the README, the demo and the methodology writeup, all three of which are named
-deliverables.
+The original split reserved twenty per cent for four differentiators. Budget
+pressure forced that to be revisited, and revisiting it was correct: two of the
+four earn nothing against the brief.
 
-Twenty per cent goes on four differentiators, and only these four:
+**Everything remaining goes on what the brief asks for**: the AI analysis
+service, the dashboard against real data, the analysis history, the README, the
+demo script and the methodology writeup. All six are named deliverables.
 
-| Extra | Why it earns its place |
+| Extra | Verdict |
 |---|---|
-| Crypto wallet BFS | The one real algorithm in the project |
-| Helm chart + kind | Deployable, mirrors how the author works at CERN |
-| Grafana, golden signals | Latency, traffic, errors, saturation — plus LLM token spend |
-| MkDocs Material | Same docs, rendered; already scaffolded |
+| Crypto wallet BFS | **Kept** — already built and merged, costs nothing more |
+| MkDocs Material | **Kept** — already scaffolded, renders docs that exist anyway |
+| Helm chart + kind | **Cut** — nowhere in the brief |
+| Grafana + golden signals | **Cut** — nowhere in the brief |
+| ArgoCD | **Cut** — was already only declared |
 
-ArgoCD is **declared, not live**: the Application manifest is committed and gets
-bootstrapped once to prove it syncs, but nothing in the demo depends on it.
+The cut work is not hidden. The README says plainly that deployment manifests
+were out of scope for the time budget and describes how the application would be
+deployed, which costs a paragraph and loses nothing: the author maintains exactly
+that stack at CERN and can speak to it in the interview.
 
-Nothing outside that table gets built. If the schedule slips, the extras are cut
-first and the README says so plainly — never the spec items, and never the demo
-rehearsal.
+If budget later allows, the order to restore is Helm, then Grafana, then live
+ArgoCD — and only after every spec item is complete and the demo has been
+rehearsed out loud.
 
 ## Stack — pinned, do not drift
 
