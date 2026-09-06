@@ -38,10 +38,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
+      # The gitleaks marketplace action exits 1 even on a clean scan (verified:
+      # its own SARIF reported zero findings). The binary is deterministic and
+      # has no licence check, so we run it directly.
       - name: Secret detection
-        uses: gitleaks/gitleaks-action@v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
+            detect --source=/repo --no-banner --redact --exit-code 1
       - name: Dependency and filesystem CVEs
         uses: aquasecurity/trivy-action@v0.36.0
         with:
