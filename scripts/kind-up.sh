@@ -134,13 +134,18 @@ kind load docker-image ghcr.io/sneakyjbras/gotthard-docs:local --name "$CLUSTER_
 
 # ---------------------------------------------------------------------------
 log "Installing ingress-nginx (kind provider manifest)"
-kubectl apply -f "$INGRESS_NGINX_MANIFEST"
+kubectl apply --server-side --force-conflicts -f "$INGRESS_NGINX_MANIFEST"
 kubectl -n "$INGRESS_NS" wait --for=condition=available deployment/ingress-nginx-controller --timeout=180s
 
 # ---------------------------------------------------------------------------
 log "Installing ArgoCD"
 kubectl get ns "$ARGOCD_NS" >/dev/null 2>&1 || kubectl create ns "$ARGOCD_NS"
-kubectl apply -n "$ARGOCD_NS" -f "$ARGOCD_MANIFEST"
+# Server-side apply: the ApplicationSet CRD is larger than the 262144-byte
+# ceiling on the last-applied-configuration annotation that client-side apply
+# writes, so `kubectl apply -f` fails on a fresh install. Server-side apply
+# keeps the managed-fields on the server instead of stuffing them into an
+# annotation, and has no such limit.
+kubectl apply --server-side --force-conflicts -n "$ARGOCD_NS" -f "$ARGOCD_MANIFEST"
 kubectl -n "$ARGOCD_NS" rollout status deploy/argocd-repo-server --timeout=300s
 kubectl -n "$ARGOCD_NS" rollout status deploy/argocd-server --timeout=300s
 kubectl -n "$ARGOCD_NS" rollout status deploy/argocd-applicationset-controller --timeout=300s
