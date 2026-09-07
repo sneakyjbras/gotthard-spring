@@ -74,7 +74,10 @@ BRANCH="$(git -C "$REPO_DIR" branch --show-current)"
 [ -n "$BRANCH" ] || die "HEAD is detached — check out the branch this bonus work lives on first"
 log "Local git source for ArgoCD: $MOUNT_SRC (branch '$BRANCH') -> /repo-source in the kind node"
 if [ "$BRANCH" != "worktree-agent-a8418dd3dc3e40a01" ]; then
-  echo "    NOTE: argocd/app-of-apps.yaml and argocd/applicationset.yaml hardcode"
+  echo "    The manifests track 'main'. ArgoCD reads the repository from a bind
+    mount inside the kind node rather than over the network, so this works
+    for a private repository with no credentials — and means the branch
+    must actually exist locally."
   echo "    targetRevision: worktree-agent-a8418dd3dc3e40a01 — update both if this"
   echo "    branch has since been renamed or merged (see CLAUDE.md: DO NOT MERGE)."
 fi

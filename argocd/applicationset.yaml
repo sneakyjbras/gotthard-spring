@@ -27,7 +27,7 @@ spec:
         elements:
           - env: kind
             namespace: gotthard
-            targetRevision: worktree-agent-a8418dd3dc3e40a01 # this bonus work's branch — see CLAUDE.md, "DO NOT MERGE"
+            targetRevision: main # the branch this work now lives on, once merged
           # - env: qa
           #   namespace: gotthard-qa
           #   targetRevision: main

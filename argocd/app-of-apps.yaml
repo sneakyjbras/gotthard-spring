@@ -19,7 +19,7 @@ spec:
   project: gotthard
   source:
     repoURL: file:///repo-source
-    targetRevision: worktree-agent-a8418dd3dc3e40a01 # this bonus work's branch — see CLAUDE.md, "DO NOT MERGE"
+    targetRevision: main # the branch this work now lives on, once merged
     path: argocd
     directory:
       recurse: false
