@@ -419,14 +419,45 @@ export function mockActivityOverview(customer: CustomerSummary): ActivityOvervie
 /**
  * The findings a risk level "would have" produced, worked from the same
  * per-transaction totals `V4__seed_demo_data.sql` documents (see
- * `./rule-catalogue` for the condition text these codes resolve to).
+ * condition text comes from the rule's own threshold_logic, as the API sends it).
  */
-const FINDINGS_BY_LEVEL: Record<Exclude<RiskLevel, 'LOW'>, readonly { ruleCode: string; ruleName: string; contribution: number }[]> = {
-  MEDIUM: [{ ruleCode: 'R-02', ruleName: 'Elevated-Risk Payment Corridor', contribution: 32 }],
-  HIGH: [{ ruleCode: 'R-03', ruleName: 'Card-Not-Present Decline Cluster', contribution: 52 }],
+const FINDINGS_BY_LEVEL: Record<
+  Exclude<RiskLevel, 'LOW'>,
+  readonly { ruleCode: string; ruleName: string; condition: string; contribution: number }[]
+> = {
+  MEDIUM: [
+    {
+      ruleCode: 'R-02',
+      ruleName: 'Elevated-Risk Payment Corridor',
+      condition:
+        'A payment to a beneficiary bank in an elevated-risk jurisdiction, where the customer has sent two or more such cross-border payments in the trailing 7 days, or their combined value reaches 5,000.',
+      contribution: 32,
+    },
+  ],
+  HIGH: [
+    {
+      ruleCode: 'R-03',
+      ruleName: 'Card-Not-Present Decline Cluster',
+      condition:
+        'Three or more card-not-present declines within an hour, across two or more distinct merchants.',
+      contribution: 52,
+    },
+  ],
   CRITICAL: [
-    { ruleCode: 'R-01', ruleName: 'Near-Threshold Structuring', contribution: 44 },
-    { ruleCode: 'R-02', ruleName: 'Elevated-Risk Payment Corridor', contribution: 32 },
+    {
+      ruleCode: 'R-01',
+      ruleName: 'Near-Threshold Structuring',
+      condition:
+        'Three or more payments just below a round reporting threshold within 7 days, together reaching 10,000 or more.',
+      contribution: 44,
+    },
+    {
+      ruleCode: 'R-02',
+      ruleName: 'Elevated-Risk Payment Corridor',
+      condition:
+        'A payment to a beneficiary bank in an elevated-risk jurisdiction, where the customer has sent two or more such cross-border payments in the trailing 7 days, or their combined value reaches 5,000.',
+      contribution: 32,
+    },
   ],
 };
 
@@ -441,6 +472,7 @@ export function mockRiskReport(customer: CustomerSummary): CustomerRiskReport {
     occurredAt: new Date(Date.now() - between(rand, 1, 96) * 3_600_000).toISOString(),
     channel: channels[index % channels.length],
     ruleCode: template.ruleCode,
+    condition: template.condition,
     ruleName: template.ruleName,
     contribution: template.contribution,
   }));

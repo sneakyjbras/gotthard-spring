@@ -186,10 +186,9 @@ export interface ActivityOverview {
 }
 
 /**
- * Mirrors `RiskFinding` — one rule firing on one transaction. The API gives a
- * code, a name and the score it contributed, but not the condition text
- * itself; pair `ruleCode` with `ruleCondition` from `./rule-catalogue` to
- * show *why* it fired, not just that it did.
+ * Mirrors `RiskFinding` — one rule firing on one transaction. `condition` is the
+ * rule's own `threshold_logic` from the database, so the sentence explaining why
+ * a rule fired lives in one place rather than being restated here.
  */
 export interface RiskFinding {
   transactionId: UUID;
@@ -197,6 +196,7 @@ export interface RiskFinding {
   channel: ActivityType;
   ruleCode: string;
   ruleName: string;
+  condition: string;
   contribution: number;
 }
 

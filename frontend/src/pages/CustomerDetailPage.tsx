@@ -4,7 +4,6 @@ import { AnalysisSection } from '@/components/analysis';
 import { PageShell } from '@/components/layout';
 import { DataTable, labelClasses, RiskBadge, StatBlock, type DataTableColumn } from '@/components/primitives';
 import { api } from '@/lib/api/client';
-import { ruleCondition } from '@/lib/api/rule-catalogue';
 import type {
   ActivityOverview,
   ActivityTransaction,
@@ -181,7 +180,7 @@ function FindingCard({ finding }: { finding: RiskFinding }) {
         </div>
         <span className="font-mono text-sm tabular-nums text-ink-muted">+{finding.contribution.toFixed(2)}</span>
       </div>
-      <p className="max-w-2xl text-sm text-ink-muted">{ruleCondition(finding.ruleCode)}</p>
+      <p className="max-w-2xl text-sm text-ink-muted">{finding.condition}</p>
       <p className="font-mono text-xs tracking-wide text-ink-faint uppercase">
         {finding.channel} · {formatDate(finding.occurredAt)} · {truncateMiddle(finding.transactionId, 8, 4)}
       </p>
