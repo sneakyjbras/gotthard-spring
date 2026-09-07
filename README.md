@@ -165,6 +165,9 @@ consistent, but it is not any real institution's compliance policy.
 
 ## How this was built — LLMs and agent instructions
 
+> The full answer to the brief's methodology question is
+> **[`AI_WORKFLOW.md`](AI_WORKFLOW.md)**. What follows is the summary.
+
 The brief asks for a summary of the models used and of the instructions given to
 them. The short version is here; `docs/ai-methodology.md` has the long one,
 including what went wrong.

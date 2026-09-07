@@ -29,5 +29,6 @@ nav:
   - Getting Started: getting-started.md
   - Architecture: architecture.md
   - Risk Model: risk-model.md
+  - AI Workflow: ai-workflow.md
   - AI Methodology: ai-methodology.md
   - Demo: demo.md

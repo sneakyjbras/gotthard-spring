@@ -175,10 +175,22 @@ kubectl apply -f "$REPO_DIR/argocd/argocd-server-ingress.yaml"
 # throwaway credential here instead.
 log "Creating the demo credentials Secret (local kind only, see comment above)"
 kubectl get ns "$NAMESPACE" >/dev/null 2>&1 || kubectl create ns "$NAMESPACE"
+# ANTHROPIC_API_KEY is carried through when the caller has one exported and
+# omitted otherwise, in which case the application uses its offline stub and
+# says so on screen -- the intended path for a reviewer without a key.
+secret_args=(
+  --from-literal=POSTGRES_DB=gotthard
+  --from-literal=POSTGRES_USER=gotthard
+  --from-literal=POSTGRES_PASSWORD=gotthard-demo-password
+)
+if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+  secret_args+=(--from-literal=ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY")
+  echo "    ANTHROPIC_API_KEY found - analyses in the cluster will call Claude"
+else
+  echo "    no ANTHROPIC_API_KEY - the cluster will use the offline stub"
+fi
 kubectl -n "$NAMESPACE" create secret generic gotthard-secrets \
-  --from-literal=POSTGRES_DB=gotthard \
-  --from-literal=POSTGRES_USER=gotthard \
-  --from-literal=POSTGRES_PASSWORD=gotthard-demo-password \
+  "${secret_args[@]}" \
   --dry-run=client -o yaml | kubectl apply -f -
 # ANTHROPIC_API_KEY is deliberately never set here — the intended reviewer
 # path is the offline stub AI adapter (see chart/templates/NOTES.txt).
@@ -188,6 +200,22 @@ kubectl -n "$NAMESPACE" create secret generic gotthard-secrets \
 # the namespace missing and every later task blaming that instead of the CRDs.
 # Creating it up front removes the misleading second error.
 kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+
+# The Prometheus Operator's CRDs, applied here rather than by Helm. Several
+# exceed the 262144-byte ceiling Kubernetes puts on annotations, which a
+# client-side apply fills with the whole manifest; server-side apply keeps
+# managed fields on the API server instead. The Application sets skipCrds: true
+# to match, which is why this step is required rather than an optimisation --
+# with Helm skipping them, nothing else would install them at all.
+log "Installing the Prometheus Operator CRDs (server-side)"
+PROM_OPERATOR_VERSION="v0.79.2"
+for crd in prometheuses prometheusagents alertmanagers alertmanagerconfigs \
+           thanosrulers scrapeconfigs podmonitors servicemonitors probes \
+           prometheusrules; do
+  kubectl apply --server-side --force-conflicts -f \
+    "https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/${PROM_OPERATOR_VERSION}/example/prometheus-operator-crd/monitoring.coreos.com_${crd}.yaml" \
+    >/dev/null || die "could not install CRD ${crd}"
+done
 
 log "Applying the AppProject and the root Application"
 kubectl apply -n "$ARGOCD_NS" -f "$REPO_DIR/argocd/appproject.yaml"
