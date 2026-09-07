@@ -19,6 +19,10 @@ repositories {
 }
 
 dependencies {
+	// Claude, behind ch.gotthard.ai.analysis.LlmClient. Not managed by the Boot BOM, so pinned
+	// explicitly. The stub adapter is what runs without an ANTHROPIC_API_KEY, so nothing about the
+	// build or the test suite depends on this jar being reachable at run time.
+	implementation("com.anthropic:anthropic-java:2.61.0")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-flyway")

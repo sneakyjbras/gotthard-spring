@@ -1,5 +1,7 @@
 package ch.gotthard.api;
 
+import ch.gotthard.service.AiAnalysisNotFoundException;
+import ch.gotthard.service.AiAnalysisUnavailableException;
 import ch.gotthard.service.CustomerNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +27,22 @@ public class ApiExceptionHandler {
     @ExceptionHandler(CustomerNotFoundException.class)
     public ResponseEntity<ApiError> onCustomerNotFound(final CustomerNotFoundException notFound) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(notFound.getMessage()));
+    }
+
+    @ExceptionHandler(AiAnalysisNotFoundException.class)
+    public ResponseEntity<ApiError> onAnalysisNotFound(final AiAnalysisNotFoundException notFound) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(notFound.getMessage()));
+    }
+
+    /**
+     * The model declined, or could not be reached. A 503 rather than a 500: nothing here is broken,
+     * one downstream dependency did not answer, and repeating the request is a reasonable thing for
+     * the console to offer.
+     */
+    @ExceptionHandler(AiAnalysisUnavailableException.class)
+    public ResponseEntity<ApiError> onAnalysisUnavailable(final AiAnalysisUnavailableException unavailable) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ApiError("No analysis was produced: " + unavailable.getMessage()));
     }
 
     /** A window that ends before it starts, or any other argument a use case refused. */
