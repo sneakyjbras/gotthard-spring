@@ -1,0 +1,64 @@
+name: codeql
+
+# Free on a public repository. It was deliberately left out while this repo was
+# private, where it needs GitHub Advanced Security — see docs/ai-methodology.md.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly, so an advisory published after the last commit still surfaces.
+    - cron: '17 4 * * 1'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: java-kotlin
+            build-mode: manual
+          - language: javascript-typescript
+            build-mode: none
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # Gradle runs on 21 here for the same reason as in ci.yml: the
+          # formatter breaks on 25's javac internals. 25 is present for the
+          # toolchain to compile against.
+          java-version: |
+            25
+            21
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      # Autobuild cannot infer this build, so it is done explicitly. Tests are
+      # skipped: CodeQL needs the classes, and the suite runs in ci.yml against
+      # Testcontainers, which would only cost minutes again here.
+      - name: Build
+        if: matrix.language == 'java-kotlin'
+        run: ./gradlew classes --no-daemon
+        working-directory: backend
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.language }}
