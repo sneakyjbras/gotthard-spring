@@ -1,0 +1,50 @@
+{{- /*
+Off by default (values.yaml ingress.enabled: false) — a real destination
+cluster brings its own ingress controller and hostname scheme, or none at
+all; port-forward (see NOTES.txt) keeps working regardless. values-kind.yaml
+turns this on against the ingress-nginx controller scripts/kind-up.sh
+installs into the kind cluster, so the demo has names instead of
+port-forwards for the app and the docs site. Grafana and ArgoCD get their own
+Ingress objects outside this chart (kube-prometheus-stack's own
+grafana.ingress.* values; argocd-server via a plain Ingress kind-up.sh
+applies) — neither is a release this chart owns.
+*/ -}}
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "gotthard.componentName" (dict "root" . "component" "frontend") }}
+  labels: {{- include "gotthard.labels" (dict "root" . "component" "frontend") | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ .Values.ingress.hosts.frontend }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "gotthard.componentName" (dict "root" . "component" "frontend") }}
+                port:
+                  number: {{ .Values.frontend.service.port }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "gotthard.componentName" (dict "root" . "component" "docs") }}
+  labels: {{- include "gotthard.labels" (dict "root" . "component" "docs") | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ .Values.ingress.hosts.docs }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "gotthard.componentName" (dict "root" . "component" "docs") }}
+                port:
+                  number: {{ .Values.docs.service.port }}
+{{- end }}

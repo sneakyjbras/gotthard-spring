@@ -104,3 +104,33 @@ postgres:
     limits:
       cpu: "1"
       memory: 1Gi
+
+# ---------------------------------------------------------------------------
+# Observability. Both flags assume a Prometheus Operator (ServiceMonitor CRD)
+# and a kube-prometheus-stack Grafana (dashboard sidecar) are present in the
+# cluster — see argocd/kube-prometheus-stack.yaml. Neither is templated by
+# this chart; both are off-able independently so the chart still renders
+# clean and installs clean on a cluster that has neither (helm lint/template
+# never touch a live API, so this only matters at apply time).
+monitoring:
+  serviceMonitor:
+    enabled: true
+  dashboard:
+    enabled: true
+  # Grafana's own unified alerting (see configmap-grafana-alerts.yaml) — not
+  # Prometheus Alertmanager, which is not installed. Same on/off-ability and
+  # for the same reason as the two flags above.
+  alerts:
+    enabled: true
+
+# ---------------------------------------------------------------------------
+# Off by default — a real destination cluster brings its own ingress
+# controller and hostnames (or none at all; port-forward still works
+# regardless). The kind demo overlay (values-kind.yaml) turns this on and
+# points it at ingress-nginx + *.localhost, which scripts/kind-up.sh installs.
+ingress:
+  enabled: false
+  className: nginx
+  hosts:
+    frontend: gotthard.localhost
+    docs: docs.localhost

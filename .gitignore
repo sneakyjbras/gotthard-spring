@@ -15,6 +15,11 @@ dist/
 secrets/secret.yaml
 **/secret.yaml
 
+# scripts/kind-up.sh's own kubeconfig for the local kind cluster — kept
+# out of ~/.kube/config on purpose (that one's current-context points at a
+# real cluster; see argocd/README.md).
+.kube/
+
 # Editors
 .idea/
 *.iml

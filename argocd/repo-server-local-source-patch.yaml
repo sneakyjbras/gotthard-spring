@@ -1,0 +1,33 @@
+# Strategic-merge patch, applied once by scripts/kind-up.sh:
+#   kubectl -n argocd patch deployment argocd-repo-server \
+#     --type strategic --patch-file argocd/repo-server-local-source-patch.yaml
+#
+# Gives argocd-repo-server a read-only bind mount of the kind node's
+# /repo-source (itself a hostPath the kind cluster config mounts from this
+# host's git checkout — see scripts/kind-up.sh) so `file:///repo-source`
+# resolves inside the container, and tells git to trust that directory
+# despite it being owned by a different uid than the container runs as
+# (git's "detected dubious ownership" guard would otherwise refuse it) —
+# via GIT_CONFIG_* env vars rather than editing a global gitconfig file, so
+# the patch is self-contained and reversible by re-rolling the Deployment.
+spec:
+  template:
+    spec:
+      volumes:
+        - name: repo-source
+          hostPath:
+            path: /repo-source
+            type: Directory
+      containers:
+        - name: argocd-repo-server
+          volumeMounts:
+            - name: repo-source
+              mountPath: /repo-source
+              readOnly: true
+          env:
+            - name: GIT_CONFIG_COUNT
+              value: "1"
+            - name: GIT_CONFIG_KEY_0
+              value: safe.directory
+            - name: GIT_CONFIG_VALUE_0
+              value: "*"
