@@ -7,12 +7,26 @@
 // en-GB reads day-month-year unambiguously regardless of the visitor's locale.
 const dateFormatter = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
+// Same convention, with the time appended — for records where more than one
+// can land on the same day (an analysis re-run while working a case, say).
+const dateTimeFormatter = new Intl.DateTimeFormat('en-GB', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
 // de-CH gives the Swiss apostrophe thousands separator (e.g. "CHF 1'234.50"),
 // the convention this bank's own statements would use, independent of currency.
 const amountFormatterCache = new Map<string, Intl.NumberFormat>();
 
 export function formatDate(iso: string): string {
   return dateFormatter.format(new Date(iso));
+}
+
+export function formatDateTime(iso: string): string {
+  return dateTimeFormatter.format(new Date(iso));
 }
 
 export function formatAmount(amount: number, currency: string): string {

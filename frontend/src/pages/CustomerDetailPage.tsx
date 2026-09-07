@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { AnalysisSection } from '@/components/analysis';
 import { PageShell } from '@/components/layout';
 import { DataTable, labelClasses, RiskBadge, StatBlock, type DataTableColumn } from '@/components/primitives';
 import { api } from '@/lib/api/client';
@@ -277,6 +278,14 @@ export function CustomerDetailPage() {
                 <h2 className="text-xl font-bold">Rules evaluation</h2>
               </div>
               <RiskSection state={riskState} />
+            </section>
+
+            <section className="flex flex-col gap-8 border-t border-rule pt-10">
+              <div className="flex flex-col gap-2">
+                <p className={labelClasses}>Analysis</p>
+                <h2 className="text-xl font-bold">AI risk analysis</h2>
+              </div>
+              {customerId ? <AnalysisSection customerId={customerId} /> : null}
             </section>
           </>
         ) : null}

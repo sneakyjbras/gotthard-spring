@@ -214,3 +214,61 @@ export interface CustomerRiskReport {
   level: RiskLevel;
   findings: RiskFinding[];
 }
+
+/** Mirrors `OperatorRef` — who an analysis is attributed to, as history and detail read it. */
+export interface AnalysisOperator {
+  operatorId: UUID;
+  username: string;
+  displayName: string;
+}
+
+/**
+ * Mirrors `PolicyCitationView` — one policy chunk the model was shown, best match first.
+ * Every retrieved chunk is cited, whether or not the summary refers to it — the list answers "what
+ * was this written from", not "what did the model quote".
+ */
+export interface AnalysisCitation {
+  chunkId: UUID;
+  document: string;
+  title: string;
+  section: string;
+  body: string;
+  similarity: number;
+  rank: number;
+}
+
+/**
+ * Mirrors `AiAnalysisView` — one row of `ai_analyses` as an operator reads it.
+ *
+ * `computedLevel` is what the rules decided; `assessedLevel` is the model's own independent read;
+ * `levelsDiverged` is read back from PostgreSQL's generated column, not recomputed on this side — see
+ * the backend type's own doc. `provider` and `model` are what actually produced this row
+ * (`"anthropic"`/`"claude-opus-5"`, or `"stub"`/`"stub-analyst-v1"` with no API key configured) and
+ * must always be shown next to the verdict, not just logged.
+ *
+ * `citations` is empty on a history listing (`getAnalysisHistory`) — that call answers "what has been
+ * asked about this customer", not "what policy backed each one". `getAnalysis` and a freshly run
+ * `runAnalysis` both fill it in.
+ */
+export interface AiAnalysis {
+  analysisId: UUID;
+  customer: Customer;
+  requestedBy: AnalysisOperator;
+  createdAt: IsoDateTime;
+  windowFrom: IsoDateTime;
+  windowTo: IsoDateTime;
+  computedScore: number;
+  computedLevel: RiskLevel;
+  assessedLevel: RiskLevel;
+  levelsDiverged: boolean;
+  summary: string;
+  recommendations: string[];
+  provider: string;
+  model: string;
+  promptVersion: string;
+  /** `null` when the provider does not report usage. */
+  inputTokens: number | null;
+  outputTokens: number | null;
+  latencyMs: number | null;
+  citations: AnalysisCitation[];
+}

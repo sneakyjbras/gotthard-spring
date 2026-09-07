@@ -3,6 +3,7 @@ import { notifySessionExpired } from './session-events';
 import type {
   ActivityOverview,
   ActivityWindowParams,
+  AiAnalysis,
   Customer,
   CustomerRiskReport,
   CustomerSummary,
@@ -168,5 +169,20 @@ export const httpApiClient: ApiClient = {
     return request<CustomerRiskReport>(`/api/customers/${encodeURIComponent(customerId)}/risk`, {
       query: { from: window?.from, to: window?.to },
     });
+  },
+
+  async runAnalysis(customerId: string, window?: ActivityWindowParams): Promise<AiAnalysis> {
+    return request<AiAnalysis>(`/api/customers/${encodeURIComponent(customerId)}/analysis`, {
+      method: 'POST',
+      query: { from: window?.from, to: window?.to },
+    });
+  },
+
+  async getAnalysisHistory(customerId: string): Promise<AiAnalysis[]> {
+    return request<AiAnalysis[]>(`/api/customers/${encodeURIComponent(customerId)}/analyses`);
+  },
+
+  async getAnalysis(analysisId: string): Promise<AiAnalysis> {
+    return request<AiAnalysis>(`/api/analyses/${encodeURIComponent(analysisId)}`);
   },
 };
