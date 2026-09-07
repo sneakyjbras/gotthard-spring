@@ -1,6 +1,15 @@
 import { ApiError, type ApiClient } from './contract';
-import { mockActivityOverview, mockCustomers, mockRiskReport } from './mock-data';
-import type { ActivityOverview, Customer, CustomerRiskReport, CustomerSummary, LoginRequest, Operator } from './types';
+import { mockActivityOverview, mockAnalysisHistory, mockCustomers, mockRiskReport, mockRunAnalysis } from './mock-data';
+import type {
+  ActivityOverview,
+  ActivityWindowParams,
+  AiAnalysis,
+  Customer,
+  CustomerRiskReport,
+  CustomerSummary,
+  LoginRequest,
+  Operator,
+} from './types';
 
 /**
  * The only account this build accepts, in mock mode — the same operator the
@@ -74,6 +83,45 @@ function findCustomer(idOrReference: string): CustomerSummary {
 }
 
 /**
+ * Every analysis run this session, keyed by customer — this mock's stand-in for `ai_analyses`.
+ * Lazily seeded with `mockAnalysisHistory` on first read per customer, so a reviewer sees a believable
+ * past before ever pressing "Run analysis", and `runAnalysis` prepends onto the same list so a fresh
+ * run shows up in history immediately, the same way it would once the real backend records it.
+ */
+const analysisStore = new Map<string, AiAnalysis[]>();
+
+function historyFor(customer: CustomerSummary): AiAnalysis[] {
+  let entries = analysisStore.get(customer.customerId);
+  if (!entries) {
+    entries = mockAnalysisHistory(customer);
+    analysisStore.set(customer.customerId, entries);
+  }
+  return entries;
+}
+
+function findAnalysis(analysisId: string): AiAnalysis {
+  for (const entries of analysisStore.values()) {
+    const found = entries.find((analysis) => analysis.analysisId === analysisId);
+    if (found) return found;
+  }
+  throw new ApiError(`No analysis with id ${analysisId}`, 404);
+}
+
+/** A believable "the model is thinking" latency — several seconds, not the network-delay band the other calls use. */
+const analysisDelay = (): Promise<void> => wait(1600 + Math.random() * 2600);
+
+/**
+ * About one run in twelve comes back unavailable — the same 503 `AiAnalysisUnavailableException`
+ * maps to on the real backend, so the panel's error state is exercised in mock mode too rather than
+ * only in code review.
+ */
+function maybeRefuse(): void {
+  if (Math.random() < 1 / 12) {
+    throw new ApiError('No analysis was produced: the model was unavailable. Try again.', 503);
+  }
+}
+
+/**
  * Stands in for the real backend. Implements `ApiClient` against the fixed
  * dataset in `./mock-data` instead of `fetch` — every method still has real
  * (simulated) latency and can fail, so the pages built against this adapter
@@ -125,5 +173,27 @@ export const mockApiClient: ApiClient = {
     await networkDelay();
     const customer = mockCustomers.find((candidate) => candidate.customerId === customerId) ?? findCustomer(customerId);
     return mockRiskReport(customer);
+  },
+
+  async runAnalysis(customerId: string, window?: ActivityWindowParams): Promise<AiAnalysis> {
+    await analysisDelay();
+    maybeRefuse();
+    const customer = mockCustomers.find((candidate) => candidate.customerId === customerId) ?? findCustomer(customerId);
+    const requestedBy = readMockSession() ?? DEMO_OPERATOR;
+    const analysis = mockRunAnalysis(customer, requestedBy, window?.from, window?.to);
+    historyFor(customer).unshift(analysis);
+    return analysis;
+  },
+
+  async getAnalysisHistory(customerId: string): Promise<AiAnalysis[]> {
+    await networkDelay();
+    const customer = mockCustomers.find((candidate) => candidate.customerId === customerId) ?? findCustomer(customerId);
+    // Newest first, without citations — mirrors `GET /api/customers/{id}/analyses` exactly.
+    return historyFor(customer).map((analysis) => ({ ...analysis, citations: [] }));
+  },
+
+  async getAnalysis(analysisId: string): Promise<AiAnalysis> {
+    await networkDelay();
+    return findAnalysis(analysisId);
   },
 };

@@ -1,6 +1,7 @@
 import type {
   ActivityOverview,
   ActivityWindowParams,
+  AiAnalysis,
   Customer,
   CustomerRiskReport,
   CustomerSummary,
@@ -73,4 +74,17 @@ export interface ApiClient {
   /** `customerId` must be the UUID; a reference is not accepted here — resolve it via `getCustomer` first. */
   getCustomerActivity(customerId: string, window?: ActivityWindowParams): Promise<ActivityOverview>;
   getCustomerRisk(customerId: string, window?: ActivityWindowParams): Promise<CustomerRiskReport>;
+  /**
+   * Runs one AI analysis over the window and records it, attributed to the signed-in operator. Not
+   * idempotent by design — each call is a separate question asked at a separate moment, which is why
+   * this returns the fresh row (citations included) rather than something callers poll for.
+   *
+   * Throws `ApiError` with `status: 503` when the model refused or could not be reached — a
+   * different case from a network/programming error, and one the analysis panel handles explicitly.
+   */
+  runAnalysis(customerId: string, window?: ActivityWindowParams): Promise<AiAnalysis>;
+  /** Every analysis run on this customer, newest first, without citations — see `AiAnalysis`'s own doc. */
+  getAnalysisHistory(customerId: string): Promise<AiAnalysis[]>;
+  /** One analysis, with every policy chunk the model was shown. */
+  getAnalysis(analysisId: string): Promise<AiAnalysis>;
 }
