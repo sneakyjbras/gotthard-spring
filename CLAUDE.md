@@ -9,32 +9,33 @@ scoped lambdas). What follows is only what is specific to this repository.
 build it.** Every agent prompt is written to `docs/agents/NN-task.md` at spawn
 time. That file is a deliverable, not a byproduct.
 
-## Effort split — revised, and the 20 has been cut
+## Effort split — the spec is done; this is the bonus
 
-The original split reserved twenty per cent for four differentiators. Budget
-pressure forced that to be revisited, and revisiting it was correct: two of the
-four earn nothing against the brief.
+Every item in the brief is built, tested and documented. What remains is
+deliberately *not* in the brief: it exists to be shown at interview, after the
+repository has already been submitted.
 
-**Everything remaining goes on what the brief asks for**: the AI analysis
-service, the dashboard against real data, the analysis history, the README, the
-demo script and the methodology writeup. All six are named deliverables.
+That ordering is the point. The submitted repository is judged against the brief,
+so nothing here may destabilise it. This work lands on `main` after the
+submission email, and a failure in it costs nothing.
 
-| Extra | Verdict |
+| Bonus | State |
 |---|---|
-| Crypto wallet BFS | **Kept** — already built and merged, costs nothing more |
-| MkDocs Material | **Kept** — already scaffolded, renders docs that exist anyway |
-| Helm chart + kind | **Cut** — nowhere in the brief |
-| Grafana + golden signals | **Cut** — nowhere in the brief |
-| ArgoCD | **Cut** — was already only declared |
+| Crypto wallet BFS | **Done** — merged in wave 2, R-05 fires against the seeded chain |
+| MkDocs Material | Scaffolded; needs content and a served image |
+| Dockerfiles + image publishing | To build |
+| Helm chart | To build |
+| kind cluster | To build |
+| ArgoCD, syncing for real | To build |
+| Grafana on the golden signals | To build |
 
-The cut work is not hidden. The README says plainly that deployment manifests
-were out of scope for the time budget and describes how the application would be
-deployed, which costs a paragraph and loses nothing: the author maintains exactly
-that stack at CERN and can speak to it in the interview.
+Mirror `~/fa/av-tools-infra` — the author maintains it and reviewers may compare:
+`chart/` with `values.yaml`, `values-qa.yaml`, `values-prod.yaml`, `_helpers.tpl`
+and `NOTES.txt`; `argocd/` with `app-of-apps.yaml`, `applicationset.yaml` and
+`appproject.yaml`; `scripts/` for the bring-up.
 
-If budget later allows, the order to restore is Helm, then Grafana, then live
-ArgoCD — and only after every spec item is complete and the demo has been
-rehearsed out loud.
+Nothing in `backend/src` or `frontend/src` changes for this work. If a bonus task
+seems to need an application change, stop and say so rather than making it.
 
 ## Stack — pinned, do not drift
 
