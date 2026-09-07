@@ -11,6 +11,10 @@ dist/
 .env
 *.local
 
+# Filled-in Kubernetes secret (use secrets/secret.example.yaml as the template)
+secrets/secret.yaml
+**/secret.yaml
+
 # Editors
 .idea/
 *.iml

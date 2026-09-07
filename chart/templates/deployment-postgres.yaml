@@ -1,0 +1,83 @@
+# A plain Deployment + PVC, not a StatefulSet — this is a demo, not
+# production HA (single replica only; see the brief). strategy: Recreate
+# because the PVC is ReadWriteOnce and a rolling update would try to attach
+# it to two pods at once.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gotthard.componentName" (dict "root" . "component" "postgres") }}
+  labels: {{- include "gotthard.labels" (dict "root" . "component" "postgres") | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {{- include "gotthard.selectorLabels" (dict "root" . "component" "postgres") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "gotthard.labels" (dict "root" . "component" "postgres") | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "gotthard.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999 # the official postgres image's own "postgres" uid
+        runAsGroup: 999
+        fsGroup: 999 # so the PVC is group-writable by that uid on first mount
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          imagePullPolicy: {{ .Values.postgres.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            # Same Secret + same keys the backend reads (see
+            # deployment-backend.yaml) — one credential, two consumers.
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: POSTGRES_PASSWORD
+            # A subdirectory, not the mount root: the official image's
+            # initdb refuses a non-empty data dir, and RWO volumes commonly
+            # seed one with lost+found.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          # pg_isready runs in-container via the container runtime, not a
+          # shell the API can $(...)-expand into — wrap in sh -c so it reads
+          # the real POSTGRES_USER/POSTGRES_DB env vars above.
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources: {{- toYaml .Values.postgres.resources | nindent 12 }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "gotthard.componentName" (dict "root" . "component" "postgres") }}

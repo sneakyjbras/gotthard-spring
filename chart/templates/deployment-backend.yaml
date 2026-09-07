@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gotthard.componentName" (dict "root" . "component" "backend") }}
+  labels: {{- include "gotthard.labels" (dict "root" . "component" "backend") | nindent 4 }}
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels: {{- include "gotthard.selectorLabels" (dict "root" . "component" "backend") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "gotthard.labels" (dict "root" . "component" "backend") | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "gotthard.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            # Non-secret half of the DB connection — same Secret, same keys
+            # the postgres pod itself bootstraps from (see
+            # deployment-postgres.yaml), composed into the JDBC URL the app
+            # expects (spring.datasource.url in application.properties).
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_URL
+              value: 'jdbc:postgresql://{{ include "gotthard.componentName" (dict "root" . "component" "postgres") }}:{{ .Values.postgres.service.port }}/$(POSTGRES_DB)'
+            # Optional. Absent key => unset env var (not an error) => the app
+            # falls back to its offline stub AI adapter — the intended
+            # reviewer path per ch.gotthard.ai.analysis.LlmClientConfiguration.
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: ANTHROPIC_API_KEY
+                  optional: true
+            {{- with .Values.backend.flaggedWallets }}
+            - name: FLAGGED_WALLETS
+              value: {{ . | quote }}
+            {{- end }}
+          # Wired to the Boot Actuator probe groups the app already exposes
+          # (management.endpoint.health.probes.enabled=true) — not a naive
+          # "/" check, which would report healthy through a dead DB pool.
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources: {{- toYaml .Values.backend.resources | nindent 12 }}

@@ -1,0 +1,106 @@
+# Default (base) values. Environment overlays: values-qa.yaml / values-prod.yaml.
+# One release per namespace — qa/prod are separate namespaces, not separate
+# releases sharing one (see _helpers.tpl's fullname note).
+
+nameOverride: ""
+fullnameOverride: ""
+
+# gotthard/environment label. Overridden per env.
+environment: qa
+
+# The GitHub Container Registry packages this chart pulls are PRIVATE by
+# default (private source repo). The intended demo path is credential-free:
+# make ghcr.io/sneakyjbras/gotthard-{backend,frontend,docs} public packages
+# once, and this stays empty. Only set imagePullSecrets if you'd rather keep
+# them private (create the secret out-of-band; the chart never templates it).
+imagePullSecrets: []
+  # - name: ghcr-pull
+
+serviceAccount:
+  create: true
+  name: ""
+
+# Native K8s Secret, created out-of-band (see secrets/secret.example.yaml).
+# The chart NEVER templates secret values — every template below only
+# references this name via secretKeyRef.
+#   Required keys: POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
+#   Optional key:  ANTHROPIC_API_KEY — absent is a valid state; the backend
+#                  falls back to its offline stub AI adapter (see
+#                  ch.gotthard.ai.analysis.LlmClientConfiguration).
+secretName: gotthard-secrets # pragma: allowlist secret
+
+# ---------------------------------------------------------------------------
+backend:
+  image:
+    repository: ghcr.io/sneakyjbras/gotthard-backend
+    tag: latest
+    # Default tag is the moving "latest"; Always keeps a redeploy honest.
+    # Pin an immutable short-SHA tag (see the ci workflow) and switch this to
+    # IfNotPresent for anything longer-lived than a demo.
+    pullPolicy: Always
+  replicaCount: 1
+  service:
+    port: 8080
+  # FLAGGED_WALLETS is optional — the image's own application.properties
+  # default already seeds the demo's watch-listed address, so leave this
+  # blank to use it. Only set to actually override.
+  flaggedWallets: ""
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 768Mi
+
+frontend:
+  image:
+    repository: ghcr.io/sneakyjbras/gotthard-frontend
+    tag: latest
+    pullPolicy: Always
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+
+docs:
+  image:
+    repository: ghcr.io/sneakyjbras/gotthard-docs
+    tag: latest
+    pullPolicy: Always
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+postgres:
+  image:
+    repository: pgvector/pgvector
+    tag: pg17
+    pullPolicy: IfNotPresent
+  service:
+    port: 5432
+  persistence:
+    size: 2Gi
+    storageClassName: "" # empty = cluster default StorageClass
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi

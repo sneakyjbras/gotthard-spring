@@ -1,0 +1,12 @@
+apiVersion: v2
+name: gotthard
+description: >-
+  Customer activity analytics for financial-services operators — Spring Boot
+  backend, React/Vite frontend, MkDocs site, and PostgreSQL/pgvector, deployed
+  as one release for the take-home's post-submission demo.
+type: application
+version: 0.1.0
+appVersion: "0.0.1-SNAPSHOT"
+maintainers:
+  - name: Jose Bras
+    email: j.eduardo.bras@outlook.com
