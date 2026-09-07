@@ -1,0 +1,19 @@
+# Strategic-merge patch, applied once by scripts/kind-up.sh:
+#   kubectl -n argocd patch deployment argocd-server \
+#     --type strategic --patch-file argocd/argocd-server-insecure-patch.yaml
+#
+# Adds --insecure to argocd-server's args so it serves plain HTTP on 8080
+# instead of self-signed HTTPS on 8080 — the standard, documented setup for
+# putting ArgoCD behind an ingress that terminates TLS itself (here,
+# ingress-nginx does not terminate TLS at all; this is a local *.localhost
+# demo over plain HTTP end to end, see argocd/README.md). Without this,
+# ingress-nginx's default HTTP backend-protocol speaks plain HTTP to a
+# TLS-only upstream and every request fails.
+spec:
+  template:
+    spec:
+      containers:
+        - name: argocd-server
+          args:
+            - /usr/local/bin/argocd-server
+            - --insecure

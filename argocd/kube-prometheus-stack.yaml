@@ -1,0 +1,122 @@
+# Mirrors ~/fa/av-tools-infra/argocd/kube-prometheus-stack.yaml's shape (same
+# chart, same project/destination pattern, same syncPolicy) with the
+# opposite Grafana call and a narrower default-component footprint — both
+# deliberate, both explained below, neither a resource-driven cut (this
+# machine's earlier low-memory reading came from unrelated parallel work, not
+# from this stack — see argocd/README.md).
+#
+# sync-wave -1 so this Application's CRDs (ServiceMonitor, PrometheusRule,
+# ...) land before gotthard-kind's servicemonitor.yaml needs them — see
+# argocd/applicationset.yaml's own sync-wave 1 and its retry/backoff, which
+# covers the case where the two race anyway.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: gotthard
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 90.0.0
+    helm:
+      values: |
+        # No Alertmanager: it routes alerts to recipients that don't exist
+        # in a demo (see chart/templates/configmap-grafana-alerts.yaml —
+        # Grafana's own unified alerting covers "an alert visibly fires"
+        # without needing anyone downstream to receive it).
+        alertmanager:
+          enabled: false
+
+        # The reference disables Grafana entirely (app dashboards live in an
+        # external MONIT Grafana there — see its own comment). This cluster
+        # has no external Grafana, and the brief's dashboard + alert rules
+        # are specifically Grafana-provisioned, so Grafana stays on here.
+        grafana:
+          enabled: true
+          defaultDashboardsEnabled: false
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 200m, memory: 256Mi }
+          sidecar:
+            dashboards:
+              enabled: true
+              label: grafana_dashboard
+              labelValue: "1"
+              searchNamespace: ALL # the dashboard ConfigMap lives beside the app in gotthard, not in monitoring
+            datasources:
+              alertmanager:
+                enabled: false # no Alertmanager — don't provision a datasource pointing at nothing
+            alerts:
+              enabled: true
+              label: grafana_alert
+              labelValue: "1"
+              searchNamespace: ALL # same reasoning as dashboards above
+          # ingress-nginx + *.localhost — see scripts/kind-up.sh. Deploying
+          # this Application against a real cluster would drop or rework
+          # this block for that cluster's own ingress/hostname scheme.
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            hosts:
+              - grafana.localhost
+            path: /
+
+        prometheus:
+          prometheusSpec:
+            retention: 1d # demo, not history
+            # Discover ServiceMonitor/PodMonitor/PrometheusRule cluster-wide
+            # by label alone (grafana-dashboard.json's metrics, scraped via
+            # chart/templates/servicemonitor.yaml) instead of restricting to
+            # this release's own label — the gotthard chart's ServiceMonitor
+            # carries gotthard's labels, not kube-prometheus-stack's.
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            ruleSelectorNilUsesHelmValues: false
+            resources:
+              requests: { cpu: 100m, memory: 256Mi }
+              limits: { cpu: 500m, memory: 512Mi }
+
+        prometheusOperator:
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 200m, memory: 256Mi }
+
+        # Off: these scrape kubeadm static-pod endpoints (etcd, the
+        # scheduler, the controller-manager, the API server's own
+        # /metrics, kube-proxy) the way a real kubeadm cluster exposes them.
+        # kind's control plane doesn't expose them the same way, so left on
+        # these are permanently-down targets adding noise, not signal — and
+        # this demo's dashboard (chart/files/grafana-dashboard.json) is
+        # entirely application-level metrics, never cluster-control-plane
+        # ones, so there is nothing here for a demo to use even where it
+        # would work.
+        kubeApiServer: { enabled: false }
+        kubeControllerManager: { enabled: false }
+        kubeScheduler: { enabled: false }
+        kubeProxy: { enabled: false }
+        kubeEtcd: { enabled: false }
+
+        # Same reasoning: node/pod-level cluster metrics this demo's
+        # dashboard never queries (it's Micrometer/Spring metrics —
+        # http_server_requests_seconds*, jvm_memory_*, hikaricp_connections_*
+        # — not kube-state-metrics/node-exporter's cadvisor/node metrics).
+        kube-state-metrics:
+          enabled: false
+        prometheus-node-exporter:
+          enabled: false
+        kubeStateMetrics: { enabled: false }
+        nodeExporter: { enabled: false }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

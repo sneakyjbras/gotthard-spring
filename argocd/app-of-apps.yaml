@@ -1,0 +1,33 @@
+# Root "app of apps": point ArgoCD at argocd/ and it reconciles the
+# AppProject, the ApplicationSet, and the kube-prometheus-stack Application —
+# same pattern as ~/fa/av-tools-infra/argocd/app-of-apps.yaml (avtools-root).
+#
+#   kubectl apply -n argocd -f argocd/app-of-apps.yaml
+#
+# repoURL is file:///repo-source, not a real GitHub remote — the source repo
+# (github.com/sneakyjbras/gotthard-spring) is private, and scripts/kind-up.sh
+# mounts this checkout's git object database straight into the kind node
+# instead of putting a GitHub credential in a throwaway local cluster. See
+# that script's header and argocd/README.md's "what a real cluster would
+# need instead" for the credentialed alternative.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gotthard-root
+  namespace: argocd
+spec:
+  project: gotthard
+  source:
+    repoURL: file:///repo-source
+    targetRevision: worktree-agent-a8418dd3dc3e40a01 # this bonus work's branch — see CLAUDE.md, "DO NOT MERGE"
+    path: argocd
+    directory:
+      recurse: false
+      exclude: app-of-apps.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

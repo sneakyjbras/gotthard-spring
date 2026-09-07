@@ -1,0 +1,37 @@
+# kind overlay — namespace gotthard, the local single-node demo cluster
+# scripts/kind-up.sh brings up. A third overlay alongside values-qa.yaml /
+# values-prod.yaml, same pattern, added for the same reason those two exist:
+# kept as its own file rather than folded into values.yaml so it stays
+# symmetrical with ~/fa/av-tools-infra's chart.
+#
+# The only real differences from the base values: images are built locally
+# and `kind load docker-image`d straight into the node's containerd (see
+# scripts/kind-up.sh's header comment for why — the ghcr.io packages are
+# private), so pullPolicy must be Never (there is nothing to pull, and
+# Always/IfNotPresent would have the kubelet try ghcr.io and fail); and
+# ingress is turned on against the ingress-nginx controller the script also
+# installs, so the app is reachable at a URL instead of only via
+# port-forward.
+environment: kind
+
+backend:
+  image:
+    tag: local
+    pullPolicy: Never
+
+frontend:
+  image:
+    tag: local
+    pullPolicy: Never
+
+docs:
+  image:
+    tag: local
+    pullPolicy: Never
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    frontend: gotthard.localhost
+    docs: docs.localhost

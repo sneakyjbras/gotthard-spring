@@ -1,0 +1,22 @@
+{{- /*
+Provisions chart/files/grafana-dashboard.json (see its own header — latency,
+traffic, errors, saturation, plus a token-spend panel marked pending
+instrumentation) via kube-prometheus-stack's Grafana sidecar, which watches
+for ConfigMaps carrying the grafana_dashboard label (default
+label/labelValue — see argocd/kube-prometheus-stack.yaml's
+grafana.sidecar.dashboards config, searchNamespace: ALL so it finds this
+ConfigMap outside Grafana's own `monitoring` namespace). This chart does not
+rewrite the dashboard, only carries it.
+*/ -}}
+{{- if .Values.monitoring.dashboard.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "gotthard.componentName" (dict "root" . "component" "grafana-dashboard") }}
+  labels:
+    {{- include "gotthard.labels" (dict "root" . "component" "grafana-dashboard") | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  gotthard-spring-golden-signals.json: |-
+{{- .Files.Get "files/grafana-dashboard.json" | nindent 4 }}
+{{- end }}

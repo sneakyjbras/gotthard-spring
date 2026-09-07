@@ -1,0 +1,34 @@
+# Mirrors ~/fa/av-tools-infra/argocd/appproject.yaml's shape (see its own
+# AppProject "avtools"): one project, wildcard resource whitelists, one entry
+# per source repo actually used and one destination per namespace actually
+# touched. `sourceRepos` includes the local file:// source (see
+# scripts/kind-up.sh's header comment on why it's file://, not the real
+# ghcr-adjacent GitHub remote) and the prometheus-community Helm repo
+# kube-prometheus-stack.yaml pulls from.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: gotthard
+  namespace: argocd
+spec:
+  description: gotthard-spring — local kind demo (post-submission bonus, see CLAUDE.md).
+  sourceRepos:
+    - file:///repo-source
+    - https://prometheus-community.github.io/helm-charts
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: gotthard
+    - server: https://kubernetes.default.svc
+      namespace: gotthard-qa
+    - server: https://kubernetes.default.svc
+      namespace: gotthard-prod
+    - server: https://kubernetes.default.svc
+      namespace: monitoring
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

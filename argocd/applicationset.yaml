@@ -1,0 +1,70 @@
+# Mirrors ~/fa/av-tools-infra/argocd/applicationset.yaml: one generator list
+# entry per environment, `values.yaml` + `values-{{.env}}.yaml` per the
+# chart's own overlay convention (chart/values-qa.yaml, chart/values-prod.yaml
+# — see their own header comments), one ApplicationSet fanning out into one
+# Application per environment.
+#
+# Only `kind` is enabled. `qa` and `prod` are left in, commented, as the
+# structural mirror of the reference's real two-environment split — they are
+# not disabled for lack of RAM; they don't apply to this cluster at all. Both
+# assume things a throwaway local kind cluster doesn't have: real credentials
+# to pull ghcr.io/sneakyjbras/gotthard-* by tag (scripts/kind-up.sh instead
+# builds the three images locally and `kind load docker-image`s them — see
+# its header), and a promotion flow across separate long-lived environments,
+# which a single-node cluster that scripts/kind-down.sh deletes outright
+# doesn't have a use for. Point `qa`/`prod`'s repoURL at the real GitHub
+# remote with a registered credential (see argocd/README.md) to actually run
+# them.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: gotthard
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+          - env: kind
+            namespace: gotthard
+            targetRevision: worktree-agent-a8418dd3dc3e40a01 # this bonus work's branch — see CLAUDE.md, "DO NOT MERGE"
+          # - env: qa
+          #   namespace: gotthard-qa
+          #   targetRevision: main
+          # - env: prod
+          #   namespace: gotthard-prod
+          #   targetRevision: main
+  template:
+    metadata:
+      name: 'gotthard-{{.env}}'
+      annotations:
+        # Sync after kube-prometheus-stack.yaml (sync-wave -1, see that
+        # file) so the ServiceMonitor CRD this chart's servicemonitor.yaml
+        # needs already exists. ArgoCD's own retry/backoff below covers the
+        # case where the two race anyway.
+        argocd.argoproj.io/sync-wave: "1"
+    spec:
+      project: gotthard
+      source:
+        repoURL: file:///repo-source
+        targetRevision: '{{.targetRevision}}'
+        path: chart
+        helm:
+          valueFiles:
+            - values.yaml
+            - 'values-{{.env}}.yaml'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{.namespace}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 15s
+            maxDuration: 3m
+            factor: 2

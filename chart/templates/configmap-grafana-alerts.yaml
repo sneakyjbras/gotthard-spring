@@ -1,0 +1,264 @@
+{{- /*
+Grafana's OWN unified alerting (not Prometheus Alertmanager — see
+argocd/kube-prometheus-stack.yaml: alertmanager is deliberately not
+installed, there is no one to route a page to in a demo). This provisions
+four rules via Grafana's file-provisioning sidecar the same way
+configmap-grafana-dashboard.yaml provisions the dashboard: a labelled
+ConfigMap the sidecar picks up, this time under sidecar.alerts (label
+grafana_alert, see argocd/kube-prometheus-stack.yaml), watched cluster-wide
+(searchNamespace: ALL) since this ConfigMap lives beside the app, not beside
+Grafana. datasourceUid "prometheus" is kube-prometheus-stack's own fixed,
+documented default (grafana.sidecar.datasources.uid) — not a guess.
+
+Every expr here is a metric the dashboard already renders (see
+chart/files/grafana-dashboard.json) — nothing is invented, and nothing here
+alerts on gotthard_ai_tokens_total, which is NOT instrumented yet (see the
+dashboard's own "LLM Token Spend — PENDING INSTRUMENTATION" panel).
+Thresholds are picked from the dashboard's own "what bad looks like" text
+where it already states one; see each rule's description for the source.
+
+Alerts surface in the Grafana UI (Alerting -> Alert rules) only — there is no
+contact point that reaches anyone (see the `nowhere` policy below). That is
+the honest scope for a demo; argocd/README.md says so plainly, and documents
+how to trip the heap rule on demand.
+*/ -}}
+{{- if .Values.monitoring.alerts.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "gotthard.componentName" (dict "root" . "component" "grafana-alerts") }}
+  labels:
+    {{- include "gotthard.labels" (dict "root" . "component" "grafana-alerts") | nindent 4 }}
+    grafana_alert: "1"
+data:
+  gotthard-spring-alerts.yaml: |-
+    apiVersion: 1
+    groups:
+      - orgId: 1
+        name: gotthard-golden-signals
+        folder: gotthard-spring
+        interval: 1m
+        rules:
+          # "p99 climbing into the seconds" is the dashboard's own definition
+          # of bad for the HTTP Latency panel (grafana-dashboard.json).
+          - uid: gotthard-http-p99-latency
+            title: HTTP p99 latency high
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange: { from: 300, to: 0 }
+                datasourceUid: prometheus
+                model:
+                  editorMode: code
+                  expr: histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket[5m])) by (le))
+                  instant: true
+                  range: false
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: A
+              - refId: B
+                relativeTimeRange: { from: 300, to: 0 }
+                datasourceUid: "__expr__"
+                model:
+                  type: reduce
+                  expression: A
+                  reducer: last
+                  refId: B
+              - refId: C
+                relativeTimeRange: { from: 300, to: 0 }
+                datasourceUid: "__expr__"
+                model:
+                  type: threshold
+                  expression: B
+                  conditions:
+                    - evaluator: { type: gt, params: [1] }
+                  refId: C
+            noDataState: NoData
+            execErrState: Error
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: p99 request latency above 1s
+              description: >-
+                p99 of http_server_requests_seconds has stayed above 1s for 2
+                minutes. Check whether one endpoint is dragging the tail
+                (most plausibly POST /api/customers/{id}/analysis, which
+                blocks on the Claude call) or whether this is systemic (DB /
+                connection pool) — see the HTTP Latency panel and the
+                HikariCP panel on the same dashboard.
+
+          # "anything sustained above roughly 1%" / "turns red at that line"
+          # is the dashboard's own definition of bad for the 5xx Error
+          # Percentage panel.
+          - uid: gotthard-http-5xx-rate
+            title: 5xx error rate high
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange: { from: 300, to: 0 }
+                datasourceUid: prometheus
+                model:
+                  editorMode: code
+                  expr: >-
+                    100 * sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+                    / sum(rate(http_server_requests_seconds_count[5m]))
+                  instant: true
+                  range: false
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: A
+              - refId: B
+                relativeTimeRange: { from: 300, to: 0 }
+                datasourceUid: "__expr__"
+                model:
+                  type: reduce
+                  expression: A
+                  reducer: last
+                  refId: B
+              - refId: C
+                relativeTimeRange: { from: 300, to: 0 }
+                datasourceUid: "__expr__"
+                model:
+                  type: threshold
+                  expression: B
+                  conditions:
+                    - evaluator: { type: gt, params: [1] }
+                  refId: C
+            noDataState: NoData
+            execErrState: Error
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: 5xx responses above 1% of traffic
+              description: >-
+                5xx responses have been above 1% of request volume for 2
+                minutes on an operator console in front of a bank's
+                compliance workflow. Most plausible cause: the Claude API
+                unreachable (AnthropicLlmClient maps that to
+                LlmRefusedException, not a silent failure) — check backend
+                logs and the AI Analysis panels before anything else.
+
+          # HikariCP saturation: the one that actually matters for this
+          # service, per the coordinator's brief — active connections
+          # queueing behind a full pool is a direct cause of the latency
+          # panel above, not just a number worth watching on its own.
+          - uid: gotthard-hikari-pool-saturation
+            title: HikariCP connection pool saturated
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange: { from: 300, to: 0 }
+                datasourceUid: prometheus
+                model:
+                  editorMode: code
+                  expr: sum(hikaricp_connections_active) / sum(hikaricp_connections_max)
+                  instant: true
+                  range: false
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: A
+              - refId: B
+                relativeTimeRange: { from: 300, to: 0 }
+                datasourceUid: "__expr__"
+                model:
+                  type: reduce
+                  expression: A
+                  reducer: last
+                  refId: B
+              - refId: C
+                relativeTimeRange: { from: 300, to: 0 }
+                datasourceUid: "__expr__"
+                model:
+                  type: threshold
+                  expression: B
+                  conditions:
+                    - evaluator: { type: gt, params: [0.8] }
+                  refId: C
+            noDataState: NoData
+            execErrState: Error
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: HikariCP pool above 80% active
+              description: >-
+                Active/max HikariCP connections has stayed above 80% for 2
+                minutes. Requests are starting to queue for a connection
+                before they can even begin running a query — this is the
+                leading indicator for the latency panel above, not a
+                trailing one. Check for a slow query holding connections open
+                or a genuine traffic increase needing a larger pool.
+
+          # A conventional high-water mark ahead of an OOMKilled container —
+          # not "heap is full" (GC would have already reclaimed it by then),
+          # but "GC pressure is sustained enough that it won't recover on its
+          # own", giving an operator a window to act before the JVM does.
+          - uid: gotthard-jvm-heap-high
+            title: JVM heap usage high
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange: { from: 300, to: 0 }
+                datasourceUid: prometheus
+                model:
+                  editorMode: code
+                  expr: sum(jvm_memory_used_bytes{area="heap"}) / sum(jvm_memory_max_bytes{area="heap"})
+                  instant: true
+                  range: false
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: A
+              - refId: B
+                relativeTimeRange: { from: 300, to: 0 }
+                datasourceUid: "__expr__"
+                model:
+                  type: reduce
+                  expression: A
+                  reducer: last
+                  refId: B
+              - refId: C
+                relativeTimeRange: { from: 300, to: 0 }
+                datasourceUid: "__expr__"
+                model:
+                  type: threshold
+                  expression: B
+                  conditions:
+                    - evaluator: { type: gt, params: [0.85] }
+                  refId: C
+            noDataState: NoData
+            execErrState: Error
+            for: 3m
+            labels:
+              severity: warning
+            annotations:
+              summary: JVM heap above 85% of max
+              description: >-
+                Used/max heap has stayed above 85% for 3 minutes — sustained
+                GC pressure, not a transient collection spike. Left alone
+                this ends in an OutOfMemoryError or a container OOM-kill;
+                restart or investigate for a leak before it does. See
+                argocd/README.md for how to trip this rule on demand (it is
+                the easiest of the four to demonstrate firing without
+                generating real load).
+
+    # Nowhere on purpose: Alertmanager is not installed (see
+    # argocd/kube-prometheus-stack.yaml), so these rules are visible only in
+    # Grafana's own Alerting UI. A demo with no on-call to page should not
+    # pretend otherwise.
+    contactPoints:
+      - orgId: 1
+        name: nowhere
+        receivers:
+          - uid: gotthard-nowhere
+            type: email
+            settings:
+              addresses: nobody@example.invalid
+            disableResolveMessage: true
+
+    policies:
+      - orgId: 1
+        receiver: nowhere
+        group_by: ["grafana_folder", "alertname"]
+{{- end }}

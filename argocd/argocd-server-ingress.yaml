@@ -1,0 +1,26 @@
+# Applied once by scripts/kind-up.sh. ArgoCD's stock install.yaml (see
+# argocd/README.md step 1) does not template an Ingress, so this is the one
+# plain Kubernetes manifest in this directory rather than a chart template —
+# ArgoCD itself is installed imperatively, not as part of the gotthard chart
+# or an Application this repo owns (see argocd/README.md's "one thing
+# installed imperatively"). Pairs with argocd-server-insecure-patch.yaml,
+# which makes argocd-server speak plain HTTP so ingress-nginx's default
+# (non-TLS) backend-protocol reaches it.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server
+  namespace: argocd
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: argocd.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  name: http

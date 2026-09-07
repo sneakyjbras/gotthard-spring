@@ -1,0 +1,24 @@
+{{- /*
+Scrapes the backend's own /actuator/prometheus (Micrometer, already exposed —
+see README's "The backend exposes ... /actuator/prometheus"). Requires the
+Prometheus Operator CRDs (installed by kube-prometheus-stack, see
+argocd/kube-prometheus-stack.yaml); monitoring.serviceMonitor.enabled exists
+so this chart still installs clean on a cluster that doesn't have them.
+*/ -}}
+{{- if .Values.monitoring.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "gotthard.componentName" (dict "root" . "component" "backend") }}
+  labels: {{- include "gotthard.labels" (dict "root" . "component" "backend") | nindent 4 }}
+spec:
+  selector:
+    matchLabels: {{- include "gotthard.selectorLabels" (dict "root" . "component" "backend") | nindent 6 }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 30s
+{{- end }}
