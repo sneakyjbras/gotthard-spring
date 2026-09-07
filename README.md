@@ -163,6 +163,43 @@ directly onto `@Enumerated(EnumType.STRING)`.
 The policy corpus is written for this exercise. It is plausible and internally
 consistent, but it is not any real institution's compliance policy.
 
+## How this was built — LLMs and agent instructions
+
+The brief asks for a summary of the models used and of the instructions given to
+them. The short version is here; `docs/ai-methodology.md` has the long one,
+including what went wrong.
+
+**Models.** Claude Opus 5 throughout, in two roles. One session acted as
+supervisor — it planned, wrote the schema, verified every branch and performed
+every merge, and wrote no feature code. The implementation was done by fourteen
+subagents, each in its own git worktree with a disjoint file scope, on Claude
+Opus 5 or Claude Sonnet 5. The application's own AI analysis also calls Claude
+Opus 5, behind a port with a deterministic stub adapter.
+
+**Choosing between them.** Opus where a wrong decision propagates; Sonnet where
+the answer was specified and the work was careful execution. So Opus for the rule
+abstraction that every later rule inherits, for the rolling window functions that
+fail silently when wrong, and for the analysis prompt. Sonnet for the JPA
+mapping, authentication, the frontend, the graph search, retrieval and seed data.
+
+**Instructions.** Every agent prompt is committed verbatim in
+[`docs/agents/`](docs/agents/), written at the moment the agent was spawned
+rather than reconstructed afterwards, alongside the model chosen and why.
+
+**Orchestration.** Work was mapped to a dependency graph and run in waves —
+independent tasks in parallel, barriers serialised. Agents committed to their own
+branches and never merged; the supervisor verified scope, tests and the
+architectural rules, and merged only after checking the *merged* tree rather than
+the branch. The git history preserves the shape: each agent's work is a branch
+merged with `--no-ff`, so the topology shows what ran in parallel.
+
+**What went wrong is written down too.** Worktree isolation does not survive an
+agent being resumed, and two agents briefly shared a directory — recoverable only
+because their file scopes did not overlap. A build piped through `tail` reported
+`tail`'s exit code and a failing build was briefly recorded as passing. Both are
+in `docs/ai-methodology.md`.
+
+
 ## Not included, deliberately
 
 **Deployment manifests.** A Helm chart, a local Kubernetes cluster, GitOps
@@ -182,6 +219,14 @@ internally consistent, and not any real institution's compliance policy.
 
 ## Documentation
 
-`docs/`, or `mkdocs serve` for the rendered site. `docs/agents/` holds the
-instructions given to each AI agent that worked on this repository, recorded as
-they were issued.
+`docs/`, or `mkdocs serve` for the rendered site.
+
+| | |
+|---|---|
+| [`docs/architecture.md`](docs/architecture.md) | The layers, the analysis pipeline, the enforced boundaries |
+| [`docs/risk-model.md`](docs/risk-model.md) | All seven rules with their conditions, weights and banding |
+| [`docs/ai-methodology.md`](docs/ai-methodology.md) | **How this was built** — models, orchestration, and what went wrong |
+| [`docs/agents/`](docs/agents/) | **Every agent instruction**, recorded as it was issued |
+| [`docs/demo.md`](docs/demo.md) | The demo runbook |
+| [`docs/policy/`](docs/policy/) | The compliance corpus the retrieval searches |
+| [`docs/getting-started.md`](docs/getting-started.md) | Running it, in more detail than above |
