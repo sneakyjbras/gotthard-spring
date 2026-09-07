@@ -184,11 +184,17 @@ kubectl -n "$NAMESPACE" create secret generic gotthard-secrets \
 # path is the offline stub AI adapter (see chart/templates/NOTES.txt).
 
 # ---------------------------------------------------------------------------
+# The stack's own CreateNamespace ran after its CRDs, so a failure there left
+# the namespace missing and every later task blaming that instead of the CRDs.
+# Creating it up front removes the misleading second error.
+kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+
 log "Applying the AppProject and the root Application"
 kubectl apply -n "$ARGOCD_NS" -f "$REPO_DIR/argocd/appproject.yaml"
 kubectl apply -n "$ARGOCD_NS" -f "$REPO_DIR/argocd/app-of-apps.yaml"
 
 # ---------------------------------------------------------------------------
+RECONCILED=false
 log "Waiting for ArgoCD to reconcile everything (kube-prometheus-stack's CRDs land first, then the chart — can take several minutes on a cold cluster)"
 EXPECTED_APPS="gotthard-root kube-prometheus-stack gotthard-kind"
 TIMEOUT_S=900
@@ -213,12 +219,14 @@ while true; do
 
   if $all_present && $all_healthy; then
     log "All Applications Synced/Healthy"
+    RECONCILED=true
     break
   fi
 
   elapsed=$((elapsed + INTERVAL_S))
   if [ "$elapsed" -ge "$TIMEOUT_S" ]; then
     echo "    TIMED OUT after ${TIMEOUT_S}s — printing current state and continuing (see argocd/README.md)"
+    RECONCILED=false
     break
   fi
   sleep "$INTERVAL_S"
@@ -252,3 +260,14 @@ cat <<EOF
 
     Tear down with scripts/kind-down.sh.
 EOF
+
+# ---------------------------------------------------------------------------
+# The URLs above are printed either way, because knowing what did come up is
+# useful when something did not. The exit status is what a caller reads, so it
+# reports reconciliation rather than "the script reached the end".
+if [ "${RECONCILED:-false}" != "true" ]; then
+  echo
+  echo "    NOT every Application reached Synced/Healthy. The URLs above may not"
+  echo "    resolve. Check: kubectl get applications -n argocd"
+  exit 1
+fi

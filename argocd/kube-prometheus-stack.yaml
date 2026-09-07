@@ -23,6 +23,11 @@ spec:
     chart: kube-prometheus-stack
     targetRevision: 90.0.0
     helm:
+      # The operator's CRDs are installed out of band by scripts/kind-up.sh with
+      # server-side apply, because several of them exceed the 262144-byte ceiling
+      # on the annotation a client-side apply writes. Helm therefore must not try
+      # to manage them as well — see argocd/README.md.
+      skipCrds: true
       values: |
         # No Alertmanager: it routes alerts to recipients that don't exist
         # in a demo (see chart/templates/configmap-grafana-alerts.yaml —
@@ -120,3 +125,8 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      # The Prometheus Operator's CRDs exceed the 262144-byte ceiling on the
+      # last-applied-configuration annotation that a client-side apply writes.
+      # ServerSideApply alone did not cover them here, so Replace lets the CRDs
+      # be written whole rather than diffed through an annotation.
+      - Replace=true
