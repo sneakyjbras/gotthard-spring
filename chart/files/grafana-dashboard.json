@@ -12,7 +12,10 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -29,7 +32,11 @@
   "liveNow": false,
   "refresh": "30s",
   "schemaVersion": 39,
-  "tags": ["gotthard-spring", "golden-signals", "spring-boot"],
+  "tags": [
+    "gotthard-spring",
+    "golden-signals",
+    "spring-boot"
+  ],
   "templating": {
     "list": [
       {
@@ -49,10 +56,13 @@
       }
     ]
   },
-  "time": { "from": "now-6h", "to": "now" },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
   "timepicker": {},
   "timezone": "browser",
-  "title": "gotthard-spring — Golden Signals",
+  "title": "gotthard-spring \u2014 Golden Signals",
   "description": "Latency, traffic, errors and saturation for the gotthard-spring backend, built on the Micrometer/Prometheus metrics its actuator/prometheus endpoint already exposes (management.metrics.distribution.percentiles-histogram.http.server.requests=true is set, so the http_server_requests_seconds histogram carries real buckets, not just a sum/count). See the 'LLM Token Spend' panel for the one metric that does not exist yet.",
   "uid": "gotthard-spring-golden-signals",
   "version": 1,
@@ -63,16 +73,29 @@
       "type": "row",
       "title": "Latency & Traffic",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "panels": []
     },
     {
       "id": 1,
       "type": "timeseries",
       "title": "HTTP Latency (p50 / p95 / p99)",
-      "description": "Request latency percentiles computed with histogram_quantile over the http_server_requests_seconds histogram — real percentiles, not an average, because management.metrics.distribution.percentiles-histogram.http.server.requests=true makes the backend publish the underlying buckets rather than just a sum and a count. p50 is the typical request; p95/p99 are the tail an operator actually feels. What bad looks like: p99 climbing into the seconds, or p99 pulling away from p50 while p50 stays flat — that gap usually means one endpoint (most plausibly POST /api/customers/{customerId}/analysis, which blocks on a Claude call) is dragging the tail while the rest of the API stays healthy. A sustained rise across all three together points at something systemic — the database or the connection pool — rather than one slow endpoint.",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "description": "Request latency percentiles computed with histogram_quantile over the http_server_requests_seconds histogram \u2014 real percentiles, not an average, because management.metrics.distribution.percentiles-histogram.http.server.requests=true makes the backend publish the underlying buckets rather than just a sum and a count. p50 is the typical request; p95/p99 are the tail an operator actually feels. What bad looks like: p99 climbing into the seconds, or p99 pulling away from p50 while p50 stays flat \u2014 that gap usually means one endpoint (most plausibly POST /api/customers/{customerId}/analysis, which blocks on a Claude call) is dragging the tail while the rest of the API stays healthy. A sustained rise across all three together points at something systemic \u2014 the database or the connection pool \u2014 rather than one slow endpoint.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "s",
@@ -87,25 +110,45 @@
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "last"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "last"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket[$__rate_interval])) by (le))",
           "legendFormat": "p50"
         },
         {
           "refId": "B",
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[$__rate_interval])) by (le))",
           "legendFormat": "p95"
         },
         {
           "refId": "C",
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket[$__rate_interval])) by (le))",
           "legendFormat": "p99"
         }
@@ -114,10 +157,18 @@
     {
       "id": 2,
       "type": "timeseries",
-      "title": "Traffic — Request Rate",
-      "description": "Requests per second, derived from the http_server_requests_seconds_count counter (the same series the latency panel's histogram sits beside) and broken out by HTTP method. This is the baseline every other panel on this dashboard is read against — a latency or error spike only means something once you know whether traffic moved too. What bad looks like: the rate dropping to zero while the pod still reports healthy (nothing is reaching the app, likely upstream — ingress, DNS, the Service), or a multi-x spike with no corresponding deploy, demo, or expected batch job behind it.",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "title": "Traffic \u2014 Request Rate",
+      "description": "Requests per second, derived from the http_server_requests_seconds_count counter (the same series the latency panel's histogram sits beside) and broken out by HTTP method. This is the baseline every other panel on this dashboard is read against \u2014 a latency or error spike only means something once you know whether traffic moved too. What bad looks like: the rate dropping to zero while the pod still reports healthy (nothing is reaching the app, likely upstream \u2014 ingress, DNS, the Service), or a multi-x spike with no corresponding deploy, demo, or expected batch job behind it.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "reqps",
@@ -126,20 +177,36 @@
             "lineWidth": 2,
             "fillOpacity": 15,
             "showPoints": "never",
-            "stacking": { "mode": "normal" },
+            "stacking": {
+              "mode": "normal"
+            },
             "spanNulls": true
           }
         },
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "last"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "last"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "expr": "sum by (method) (rate(http_server_requests_seconds_count[$__rate_interval]))",
           "legendFormat": "{{method}}"
         }
@@ -150,20 +217,36 @@
       "type": "row",
       "title": "Errors",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
       "panels": []
     },
     {
       "id": 3,
       "type": "timeseries",
       "title": "5xx Error Rate",
-      "description": "Server-error responses per second — the same http_server_requests_seconds_count series as the traffic panel, filtered to status=~\"5..\". What bad looks like: any sustained non-zero value. This is an operator console in front of a bank's compliance workflow; a 5xx should be rare enough that a genuine occurrence (most plausibly the Claude API being unreachable, which AnthropicLlmClient turns into a mapped error via LlmRefusedException/ApiExceptionHandler rather than a silent failure) is worth looking at individually, not averaged away.",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "description": "Server-error responses per second \u2014 the same http_server_requests_seconds_count series as the traffic panel, filtered to status=~\"5..\". What bad looks like: any sustained non-zero value. This is an operator console in front of a bank's compliance workflow; a 5xx should be rare enough that a genuine occurrence (most plausibly the Claude API being unreachable, which AnthropicLlmClient turns into a mapped error via LlmRefusedException/ApiExceptionHandler rather than a silent failure) is worth looking at individually, not averaged away.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "reqps",
-          "color": { "mode": "fixed", "fixedColor": "red" },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          },
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
@@ -174,21 +257,41 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 0.001 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.001
+              }
             ]
           }
         },
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom", "calcs": ["mean", "max", "last"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "last"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\"}[$__rate_interval]))",
           "legendFormat": "5xx / s"
         }
@@ -198,9 +301,17 @@
       "id": 4,
       "type": "timeseries",
       "title": "5xx Error Percentage",
-      "description": "5xx responses as a share of total request volume — the same signal as the error-rate panel, normalised so a drop in traffic doesn't read as an improvement and a rise in traffic doesn't read as a regression. What bad looks like: anything sustained above roughly 1%. The threshold colouring on this panel turns red at that line; a low absolute error count can still be a real problem once it's a meaningful fraction of a quiet traffic period.",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "description": "5xx responses as a share of total request volume \u2014 the same signal as the error-rate panel, normalised so a drop in traffic doesn't read as an improvement and a rise in traffic doesn't read as a regression. What bad looks like: anything sustained above roughly 1%. The threshold colouring on this panel turns red at that line; a low absolute error count can still be a real problem once it's a meaningful fraction of a quiet traffic period.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "percent",
@@ -213,26 +324,51 @@
             "spanNulls": true,
             "gradientMode": "scheme"
           },
-          "color": { "mode": "thresholds" },
+          "color": {
+            "mode": "thresholds"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "orange", "value": 0.5 },
-              { "color": "red", "value": 1 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
             ]
           }
         },
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom", "calcs": ["mean", "max", "last"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "last"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "expr": "100 * sum(rate(http_server_requests_seconds_count{status=~\"5..\"}[$__rate_interval])) / sum(rate(http_server_requests_seconds_count[$__rate_interval]))",
           "legendFormat": "5xx %"
         }
@@ -243,16 +379,29 @@
       "type": "row",
       "title": "Saturation",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
       "panels": []
     },
     {
       "id": 5,
       "type": "timeseries",
-      "title": "JVM Heap — Used vs Max",
-      "description": "Heap memory used against the JVM's configured maximum (jvm_memory_used_bytes / jvm_memory_max_bytes, area=\"heap\" — both published automatically by Micrometer's JVM memory metrics, no extra config needed). The workload here is IO-bound by design (spring.threads.virtual.enabled=true — virtual threads park cheaply while waiting on PostgreSQL or the Claude call), so heap pressure rather than platform-thread exhaustion is the memory-side saturation signal worth watching. What bad looks like: used tracking close to max for a sustained stretch, not a single spike around a GC cycle — that sustained closeness is the run-up to GC thrashing or an OutOfMemoryError.",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 19 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "title": "JVM Heap \u2014 Used vs Max",
+      "description": "Heap memory used against the JVM's configured maximum (jvm_memory_used_bytes / jvm_memory_max_bytes, area=\"heap\" \u2014 both published automatically by Micrometer's JVM memory metrics, no extra config needed). The workload here is IO-bound by design (spring.threads.virtual.enabled=true \u2014 virtual threads park cheaply while waiting on PostgreSQL or the Claude call), so heap pressure rather than platform-thread exhaustion is the memory-side saturation signal worth watching. What bad looks like: used tracking close to max for a sustained stretch, not a single spike around a GC cycle \u2014 that sustained closeness is the run-up to GC thrashing or an OutOfMemoryError.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 19
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "bytes",
@@ -266,28 +415,59 @@
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Max" },
+            "matcher": {
+              "id": "byName",
+              "options": "Max"
+            },
             "properties": [
-              { "id": "custom.lineStyle", "value": { "fill": "dash" } },
-              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
             ]
           }
         ]
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "last"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "last"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "expr": "sum(jvm_memory_used_bytes{area=\"heap\"})",
           "legendFormat": "Used"
         },
         {
           "refId": "B",
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "expr": "sum(jvm_memory_max_bytes{area=\"heap\"})",
           "legendFormat": "Max"
         }
@@ -296,10 +476,18 @@
     {
       "id": 6,
       "type": "timeseries",
-      "title": "HikariCP Connections — Active vs Max",
-      "description": "Active pooled connections against the configured pool ceiling (hikaricp_connections_active / hikaricp_connections_max). This — not CPU, not raw thread count — is the right saturation signal for a database-backed service like this one: the window-function feature query, every risk_assessments write, and the pgvector policy retrieval all hold a connection from this one pool, and a pool that is fully checked out queues every subsequent request behind it no matter how much CPU or memory headroom the pod still has. What bad looks like: active tracking at or near max for a sustained period — that shows up as rising latency everywhere else on this dashboard before it shows up as an explicit error here, which is exactly why it belongs next to the other saturation signal rather than being inferred after the fact.",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 19 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "title": "HikariCP Connections \u2014 Active vs Max",
+      "description": "Active pooled connections against the configured pool ceiling (hikaricp_connections_active / hikaricp_connections_max). This \u2014 not CPU, not raw thread count \u2014 is the right saturation signal for a database-backed service like this one: the window-function feature query, every risk_assessments write, and the pgvector policy retrieval all hold a connection from this one pool, and a pool that is fully checked out queues every subsequent request behind it no matter how much CPU or memory headroom the pod still has. What bad looks like: active tracking at or near max for a sustained period \u2014 that shows up as rising latency everywhere else on this dashboard before it shows up as an explicit error here, which is exactly why it belongs next to the other saturation signal rather than being inferred after the fact.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 19
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
@@ -314,28 +502,59 @@
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Max" },
+            "matcher": {
+              "id": "byName",
+              "options": "Max"
+            },
             "properties": [
-              { "id": "custom.lineStyle", "value": { "fill": "dash" } },
-              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
             ]
           }
         ]
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "last"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "last"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "expr": "sum(hikaricp_connections_active)",
           "legendFormat": "Active"
         },
         {
           "refId": "B",
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "expr": "sum(hikaricp_connections_max)",
           "legendFormat": "Max"
         }
@@ -346,16 +565,29 @@
       "type": "row",
       "title": "AI Analysis",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
       "panels": []
     },
     {
       "id": 7,
       "type": "timeseries",
-      "title": "LLM Token Spend — PENDING INSTRUMENTATION",
-      "description": "PENDING INSTRUMENTATION — this metric is not currently emitted; the panel will render no data until it is added. ch.gotthard.ai.analysis.LlmCompletion already carries inputTokens/outputTokens per analysis (AnthropicLlmClient.analyse(...) populates both from Claude's own usage() response), but a repository-wide search for MeterRegistry/Counter/Timer under backend/src/main/java/ch/gotthard/ai/ finds none — the only place those counts go today is the ai_analyses.input_tokens / output_tokens columns in PostgreSQL, written once per analysis by AiAnalysisArchive. There is no Prometheus series for token spend yet. This panel is written against the metric name that WOULD be correct: a Micrometer Counter such as gotthard.ai.tokens.total, tagged token_type=\"input\"|\"output\", provider (\"anthropic\"|\"stub\") and model, incremented by AiAnalysisService once per completed analysis using the counts already sitting on LlmCompletion — so the dashboard is ready the day that instrumentation is added. Adding it is an application change under backend/src/main/java/ch/gotthard/ai/analysis, which is out of scope for this dashboard. What bad would look like, once wired: a step-change in tokens/analysis with no corresponding change in the prompt or the retrieved policy volume — a sign the prompt is growing unbounded or retrieval is over-returning.",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 28 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "title": "LLM Token Spend \u2014",
+      "description": "Tokens billed by the analysis model, split by direction. Published by MeteredLlmClient, which wraps whichever adapter is active - so a flat zero here means the stub is answering, not that the panel is broken. Output tokens rising without a matching rise in analyses means prompts or responses are growing.",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 28
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
@@ -366,18 +598,32 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "noValue": "no data — metric not yet instrumented"
+          "noValue": "no data \u2014 metric not yet instrumented"
         },
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "last"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "last"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "expr": "sum by (token_type) (rate(gotthard_ai_tokens_total[$__rate_interval]))",
           "legendFormat": "{{token_type}} tokens/s"
         }

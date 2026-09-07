@@ -1,6 +1,7 @@
 package ch.gotthard.ai.analysis;
 
 import com.anthropic.client.okhttp.AnthropicOkHttpClient;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
@@ -39,28 +40,40 @@ public class LlmClientConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(LlmClientConfiguration.class);
 
+    /**
+     * Both adapters are wrapped, so the stub's spend reads as zero rather than as missing. A panel
+     * with no series looks broken; one sitting at zero says the stub is answering.
+     */
+    private static LlmClient metered(final LlmClient client, final MeterRegistry meters) {
+        return new MeteredLlmClient(client, meters);
+    }
+
     @Bean
     @ConditionalOnExpression(KEY_PRESENT)
-    LlmClient anthropicLlmClient(final AiAnalysisProperties properties) {
+    LlmClient anthropicLlmClient(final AiAnalysisProperties properties, final MeterRegistry meters) {
         log.info(
                 "AI analysis provider: anthropic, model {}, prompt {} — ANTHROPIC_API_KEY is set, analyses will"
                         + " call the Claude API",
                 properties.model(),
                 AnalysisPromptAssembler.VERSION);
-        return new AnthropicLlmClient(
-                AnthropicOkHttpClient.builder().apiKey(properties.apiKey()).build(),
-                properties.model(),
-                properties.maxTokens());
+        return metered(
+                new AnthropicLlmClient(
+                        AnthropicOkHttpClient.builder()
+                                .apiKey(properties.apiKey())
+                                .build(),
+                        properties.model(),
+                        properties.maxTokens()),
+                meters);
     }
 
     @Bean
     @ConditionalOnExpression(KEY_ABSENT)
-    LlmClient stubLlmClient(final ObjectMapper json) {
+    LlmClient stubLlmClient(final ObjectMapper json, final MeterRegistry meters) {
         log.info(
                 "AI analysis provider: stub, model {}, prompt {} — no ANTHROPIC_API_KEY, analyses are derived"
                         + " deterministically from the signals and make no network call",
                 StubLlmClient.MODEL,
                 AnalysisPromptAssembler.VERSION);
-        return new StubLlmClient(json);
+        return metered(new StubLlmClient(json), meters);
     }
 }
