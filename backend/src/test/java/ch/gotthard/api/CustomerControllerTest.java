@@ -189,6 +189,7 @@ class CustomerControllerTest {
                         ActivityType.PAYMENT,
                         "R-01",
                         "Near-threshold structuring",
+                        "Three or more payments just below the reporting threshold in seven days.",
                         new BigDecimal("30.00"))));
     }
 }

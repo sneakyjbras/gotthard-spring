@@ -15,4 +15,5 @@ public record RiskFinding(
         ActivityType channel,
         String ruleCode,
         String ruleName,
+        String condition,
         BigDecimal contribution) {}

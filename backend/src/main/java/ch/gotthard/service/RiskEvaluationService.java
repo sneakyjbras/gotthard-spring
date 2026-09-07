@@ -178,14 +178,26 @@ public class RiskEvaluationService {
     }
 
     private static Stream<RiskFinding> findingsOf(final ScoredActivity activity, final RuleCatalogue catalogue) {
-        return activity.evaluation().hits().stream()
-                .map(hit -> new RiskFinding(
-                        activity.transactionId(),
-                        activity.occurredAt(),
-                        activity.channel(),
-                        hit.ruleCode(),
-                        catalogue.require(hit.ruleCode()).getRuleName(),
-                        hit.contribution()));
+        return activity.evaluation().hits().stream().map(hit -> findingOf(activity, hit, catalogue));
+    }
+
+    /**
+     * A finding carries the rule's condition as well as its name. The operator seeing a score needs
+     * to read why it moved, and the sentence explaining that already exists in {@code
+     * risk_rules.threshold_logic} — sending only the code would force every client to keep its own
+     * copy of it.
+     */
+    private static RiskFinding findingOf(
+            final ScoredActivity activity, final RuleHit hit, final RuleCatalogue catalogue) {
+        final RiskRule rule = catalogue.require(hit.ruleCode());
+        return new RiskFinding(
+                activity.transactionId(),
+                activity.occurredAt(),
+                activity.channel(),
+                hit.ruleCode(),
+                rule.getRuleName(),
+                rule.getThresholdLogic(),
+                hit.contribution());
     }
 
     /** A hit paired with the row that priced it, so the assessment can be written in one pass. */

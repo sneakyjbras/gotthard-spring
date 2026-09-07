@@ -52,6 +52,31 @@ curl -b cookies.txt -c cookies.txt \
 curl -b cookies.txt http://localhost:8080/api/auth/me
 ```
 
+## Seeing it work
+
+The database seeds seven customers, each of whom exists to demonstrate one thing.
+Log in as `e.rossi` and search these references. Search takes a reference or a
+UUID — there is no name search.
+
+| Reference | Customer | What it demonstrates |
+|---|---|---|
+| `CH-7002-4488` | Sandra Wyss | **CRITICAL.** Five payments between 9,300 and 9,750 to the same Myanmar account across six days. The corridor rule fires on the first; structuring joins at the third. No individual row looks wrong — the pattern exists only in the window. |
+| `CH-7002-4471` | Livia Baumann | **LOW, nothing fired.** The control. Without a customer who scores zero, there is no evidence the scorer discriminates rather than flagging everyone. |
+| `CH-7002-4525` | Reto Zimmermann | **LOW.** Card declines and a cross-border payment that look irregular and correctly trip nothing. Absence of a false positive, deliberately constructed. |
+| `CH-7002-4518` | Thomas Egger | **HIGH.** Card-not-present declines across several merchants inside the hour — card testing. |
+| `CH-7002-4482` | Julian Meier | **HIGH.** Two hops from a flagged wallet, found by walking the transfer graph, plus rapid disposal to an exchange shortly after inbound funding. |
+| `CH-7002-4501` | Priya Nair | **MEDIUM.** Dormant for three months, then a burst in a single day including quasi-cash spend. Two weak signals that only matter together. |
+
+On any of them, run an AI analysis. The result names a risk level, summarises what
+was found, recommends what the operator should do, and cites the policy sections
+it was shown. Past analyses stay available, attributed to the operator who ran
+them.
+
+Without `ANTHROPIC_API_KEY` set, a deterministic stub produces the same structure
+offline and the interface says so. The rules-derived score is identical either
+way — the model never touches it.
+
+
 ## Architecture
 
 ```
@@ -137,6 +162,23 @@ directly onto `@Enumerated(EnumType.STRING)`.
 
 The policy corpus is written for this exercise. It is plausible and internally
 consistent, but it is not any real institution's compliance policy.
+
+## Not included, deliberately
+
+**Deployment manifests.** A Helm chart, a local Kubernetes cluster, GitOps
+reconciliation and Grafana dashboards were planned and cut. None of them appears
+in the brief, and the time was better spent on what does. The author maintains
+exactly that stack — Helm charts reconciled by ArgoCD, kube-prometheus-stack for
+metrics — for two production services at CERN, and is happy to talk through how
+this would deploy.
+
+**A real embedding model.** Retrieval uses a deterministic local embedder so the
+application runs with no credentials and no network. It is a stand-in, labelled
+as one in its own javadoc, not a claim to be a semantic model.
+
+**The policy corpus is fiction.** Written for this exercise: plausible,
+internally consistent, and not any real institution's compliance policy.
+
 
 ## Documentation
 
