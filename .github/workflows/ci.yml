@@ -51,3 +51,55 @@ jobs:
           scan-type: fs
           severity: HIGH,CRITICAL
           exit-code: '1'
+
+  # Post-submission bonus (see CLAUDE.md's effort-split table): builds and
+  # publishes the three demo images. Gated on `backend` + `security` passing
+  # first and scoped to pushes on main only, so this never runs on a PR and
+  # never publishes a build that failed tests or the secret/CVE scan.
+  publish-images:
+    name: Publish images (${{ matrix.image }})
+    needs: [backend, security]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Scoped to this job only — every other job keeps the default (read-only)
+    # token permissions.
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - image: backend
+            context: backend
+            dockerfile: backend/Dockerfile
+          - image: frontend
+            context: frontend
+            dockerfile: frontend/Dockerfile
+          # Build context is the repo root, not docs/ — mkdocs.yml and
+          # requirements.txt live there (see docs/Dockerfile's own header).
+          - image: docs
+            context: .
+            dockerfile: docs/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Short SHA
+        id: sha
+        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ghcr.io/sneakyjbras/gotthard-${{ matrix.image }}:${{ steps.sha.outputs.short }}
+            ghcr.io/sneakyjbras/gotthard-${{ matrix.image }}:latest
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}

@@ -1,0 +1,4 @@
+# QA overlay — namespace gotthard-qa. Mirrors the base values almost exactly;
+# kept as its own file (rather than folded into values.yaml) so the qa/prod
+# split is explicit and symmetrical, matching ~/fa/av-tools-infra's chart.
+environment: qa

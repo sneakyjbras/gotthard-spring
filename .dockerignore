@@ -1,0 +1,15 @@
+# Root-context build (docs/Dockerfile only — backend/ and frontend/ build
+# from their own directory and carry their own .dockerignore). Excludes
+# everything the docs image doesn't need so the build context stays small.
+backend/
+frontend/
+chart/
+scripts/
+.git/
+.github/
+.claude/
+# Anchored (leading /) so this only drops root-level markdown — docs/**/*.md
+# is what the build actually needs and must not match here.
+/*.md
+start.sh
+docker-compose.yml

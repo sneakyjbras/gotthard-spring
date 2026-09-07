@@ -1,0 +1,39 @@
+gotthard-spring deployed to namespace {{ .Release.Namespace }} (environment: {{ .Values.environment }}).
+
+Components:
+  - {{ include "gotthard.componentName" (dict "root" . "component" "backend") }}   (Spring Boot API, port {{ .Values.backend.service.port }})
+  - {{ include "gotthard.componentName" (dict "root" . "component" "frontend") }}  (operator console, port {{ .Values.frontend.service.port }})
+  - {{ include "gotthard.componentName" (dict "root" . "component" "docs") }}      (MkDocs site, port {{ .Values.docs.service.port }})
+  - {{ include "gotthard.componentName" (dict "root" . "component" "postgres") }}  (pgvector/pgvector:pg17, PVC-backed)
+
+Before anything can start, the credentials Secret must exist (the chart never
+creates or templates it — see secrets/secret.example.yaml):
+  kubectl -n {{ .Release.Namespace }} apply -f secrets/secret.yaml   # your filled-in copy, gitignored
+
+{{- if not .Values.imagePullSecrets }}
+
+NOTE — this repository is private, so ghcr.io/sneakyjbras/gotthard-{backend,frontend,docs}
+are private packages by default. No imagePullSecrets are configured (see
+values.yaml), so pulling them here needs one of:
+  - make the three packages public on GHCR (Package settings -> Change visibility) —
+    this is the intended, credential-free demo path, or
+  - create a pull secret and set imagePullSecrets in values.yaml:
+      kubectl -n {{ .Release.Namespace }} create secret docker-registry ghcr-pull \
+        --docker-server=ghcr.io --docker-username=<user> --docker-password=<PAT with read:packages>
+{{- end }}
+
+Reach the app:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "gotthard.componentName" (dict "root" . "component" "frontend") }} 8080:{{ .Values.frontend.service.port }}
+  open http://localhost:8080
+
+Docs site:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "gotthard.componentName" (dict "root" . "component" "docs") }} 8081:{{ .Values.docs.service.port }}
+  open http://localhost:8081
+
+Watch the rollout:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }} -w
+
+ANTHROPIC_API_KEY is optional. Absent from the Secret, the backend logs which
+AI adapter is live and runs the offline stub adapter — the intended reviewer
+path (see ch.gotthard.ai.analysis.LlmClientConfiguration). Add the key to
+secrets/secret.yaml and `helm upgrade` to switch it to the real Claude adapter.

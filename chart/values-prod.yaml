@@ -1,0 +1,28 @@
+# PROD overlay — namespace gotthard-prod. More headroom than qa and a second
+# backend/frontend replica; postgres stays single-replica either way (see the
+# brief: a plain Deployment + PVC is fine, this is a demo, not production HA).
+environment: prod
+
+backend:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 500m
+      memory: 768Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+
+frontend:
+  replicaCount: 2
+
+postgres:
+  persistence:
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi

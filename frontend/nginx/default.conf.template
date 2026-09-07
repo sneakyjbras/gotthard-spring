@@ -1,0 +1,50 @@
+# Rendered by nginx's own docker-entrypoint.d/20-envsubst-on-templates.sh at
+# container start (only ${BACKEND_UPSTREAM} is substituted — nginx's own
+# $host / $uri / $scheme / $remote_addr are untouched, envsubst is invoked
+# with an explicit allow-list of env var names). See ../Dockerfile.
+server {
+    listen       8080;
+    server_name  _;
+
+    root   /usr/share/nginx/html;
+    index  index.html;
+
+    # NGINX_LOCAL_RESOLVERS is exported by the base image's own
+    # 15-local-resolvers.envsh (enabled via NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
+    # in the Dockerfile) from this pod's /etc/resolv.conf — i.e. the cluster's
+    # real CoreDNS address, not a hardcoded one. Paired with `set` + a
+    # variable in proxy_pass below, this makes the backend's Service name
+    # resolve lazily per-request instead of once at nginx startup, so this
+    # container doesn't crash-loop if it starts a beat before the backend
+    # Service's DNS record is ready.
+    resolver ${NGINX_LOCAL_RESOLVERS} valid=10s;
+
+    # Same-origin API proxy — mirrors vite.config.ts's dev-time `/api` proxy
+    # exactly, and for the same reason: the session cookie is
+    # `SameSite=Strict` (see the backend's SecurityConfig), which only
+    # survives a same-origin request. BACKEND_UPSTREAM is the backend
+    # Service's cluster DNS name:port, set by the chart (values.yaml
+    # backend.service name/port; see templates/deployment-frontend.yaml).
+    location /api/ {
+        set $backend_upstream ${BACKEND_UPSTREAM};
+        proxy_pass http://$backend_upstream/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # SPA fallback for react-router's client-side routes (BrowserRouter).
+    location / {
+        try_files $uri /index.html;
+    }
+
+    # Fingerprinted build assets (Vite outputs content-hashed filenames) —
+    # safe to cache hard; index.html itself is not fingerprinted and falls
+    # through to the default (no-cache) handling above.
+    location /assets/ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+}
