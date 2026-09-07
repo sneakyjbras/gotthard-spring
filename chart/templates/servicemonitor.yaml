@@ -1,3 +1,8 @@
+{{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1" }}
+{{- /* The Prometheus Operator owns this CRD. Without the guard the chart
+       cannot install before the monitoring stack does — and the monitoring
+       stack is itself deployed by this same GitOps setup, so the two would
+       deadlock on a cold cluster. */}}
 {{- /*
 Scrapes the backend's own /actuator/prometheus (Micrometer, already exposed —
 see README's "The backend exposes ... /actuator/prometheus"). Requires the
@@ -21,4 +26,6 @@ spec:
     - port: http
       path: /actuator/prometheus
       interval: 30s
+{{- end }}
+
 {{- end }}

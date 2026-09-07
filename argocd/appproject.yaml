@@ -26,6 +26,11 @@ spec:
       namespace: monitoring
     - server: https://kubernetes.default.svc
       namespace: argocd
+    # kube-prometheus-stack puts kube-state-metrics and the node exporter here.
+    # Listing it is what lets the stack install at all; leaving it out fails the
+    # sync with "namespace kube-system is not permitted in project".
+    - server: https://kubernetes.default.svc
+      namespace: kube-system
   clusterResourceWhitelist:
     - group: "*"
       kind: "*"
