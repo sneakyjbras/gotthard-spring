@@ -9,6 +9,7 @@ import type {
   CustomerSummary,
   LoginRequest,
   Operator,
+  RiskLevel,
 } from './types';
 
 /**
@@ -117,7 +118,29 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return handleResponse<T>(response, options.sessionSensitive ?? true);
 }
 
-const toCustomerSummary = (customer: Customer): CustomerSummary => ({ ...customer, latestRiskLevel: null });
+const toCustomerSummary = (customer: Customer, latestRiskLevel: RiskLevel | null): CustomerSummary => ({
+  ...customer,
+  latestRiskLevel,
+});
+
+/**
+ * The risk level to show beside a search result.
+ *
+ * `CustomerView` carries no risk field, and deliberately so — the schema keeps
+ * risk on the evaluation, not on the customer. But an operator scanning a result
+ * wants to see it without opening the record, and the rules always have an
+ * answer: scoring needs no analysis and no model call. So the level is fetched
+ * alongside, and a failure here degrades to no badge rather than to no result —
+ * finding the customer matters more than decorating the row.
+ */
+async function latestLevelOf(customerId: string): Promise<RiskLevel | null> {
+  try {
+    const report = await request<CustomerRiskReport>(`/api/customers/${encodeURIComponent(customerId)}/risk`);
+    return report.level;
+  } catch {
+    return null;
+  }
+}
 
 export const httpApiClient: ApiClient = {
   async login({ username, password }: LoginRequest): Promise<Operator> {
@@ -148,7 +171,7 @@ export const httpApiClient: ApiClient = {
     if (trimmed.length === 0) return [];
     try {
       const customer = await request<Customer>(`/api/customers/${encodeURIComponent(trimmed)}`);
-      return [toCustomerSummary(customer)];
+      return [toCustomerSummary(customer, await latestLevelOf(customer.customerId))];
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) return [];
       throw error;
